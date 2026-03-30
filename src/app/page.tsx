@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 type CourseItem = {
 	id: string;
@@ -116,15 +116,17 @@ export default function Home() {
 		};
 	}, [themeMode]);
 
+	const deferredKeyword = useDeferredValue(keyword);
+
 	const filteredCourses = useMemo(() => {
-		const word = keyword.trim().toLowerCase();
+		const word = deferredKeyword.trim().toLowerCase();
 		if (!word) {
 			return courses;
 		}
 		return courses.filter((item) => {
 			return item.courseName.toLowerCase().includes(word) || item.teacherName.toLowerCase().includes(word);
 		});
-	}, [courses, keyword]);
+	}, [courses, deferredKeyword]);
 
 	const hasCourses = courses.length > 0;
 	const hasQr = Boolean(qrDataUrl);
@@ -414,7 +416,7 @@ export default function Home() {
 								)}
 							</div>
 
-							<div className="clay-card hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
+							<div className="render-skip clay-card hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
 								<table className="min-w-full text-sm">
 									<caption className="sr-only">课程查询结果和签到码生成操作</caption>
 									<thead className="bg-[color:var(--paper-strong)] text-left text-[color:var(--muted)]">
@@ -491,7 +493,7 @@ export default function Home() {
 
 							<div
 								ref={qrSectionRef}
-								className={`clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
+								className={`render-skip clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
 									qrRelayActive ? "relay-highlight" : ""
 								}`}
 							>
