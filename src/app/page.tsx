@@ -42,10 +42,23 @@ function getTodayInputDate(): string {
 }
 
 function formatRange(start: string, end: string): string {
+	const toTimeOnly = (value: string): string => {
+		if (!value) {
+			return "--";
+		}
+
+		const timeMatch = value.match(/(\d{2}:\d{2}(?::\d{2})?)$/);
+		if (timeMatch) {
+			return timeMatch[1];
+		}
+
+		return value;
+	};
+
 	if (!start && !end) {
 		return "--";
 	}
-	return `${start || "--"} ~ ${end || "--"}`;
+	return `${toTimeOnly(start)} ~ ${toTimeOnly(end)}`;
 }
 
 function buildSignInUrl(uuid: string, expiresAt: number): string {
@@ -183,12 +196,7 @@ export default function Home() {
 			return;
 		}
 
-		try {
-			await navigator.clipboard.writeText(uuid);
-			updateStatus("success", "签到码已生成，课程 UUID 已复制");
-		} catch {
-			updateStatus("info", `签到码已生成，当前课程 UUID：${uuid}`);
-		}
+		updateStatus("success", "签到码已生成");
 
 		if (window.matchMedia("(max-width: 1023px)").matches) {
 			setQrRelayActive(true);
@@ -477,13 +485,6 @@ export default function Home() {
 								</table>
 							</div>
 
-							<div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									当前选中课程 UUID
-								</p>
-								<p className="mt-2 break-all font-mono text-sm">{selectedUuid || "尚未选择课程"}</p>
-							</div>
-
 							<div
 								ref={qrSectionRef}
 								className={`rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
@@ -540,7 +541,7 @@ export default function Home() {
 										</div>
 									</div>
 								) : (
-									<p className="mt-2 text-sm text-[color:var(--green)]">先选择课程，再生成签到码。</p>
+									<p className="mt-2 text-sm">先选择课程，再生成签到码</p>
 								)}
 							</div>
 						</div>
