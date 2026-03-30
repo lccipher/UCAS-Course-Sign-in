@@ -2,82 +2,82 @@
 
 :root {
 	color-scheme: light;
-	--ink: #1f2429;
-	--muted: #55616f;
-	--paper: #f4f1e8;
-	--paper-strong: #e8dfcb;
-	--surface: #fff8ea;
-	--surface-raised: #fffdf7;
-	--accent: #b5521f;
-	--accent-soft: #d57445;
-	--green: #3f7056;
-	--line: #cdbd9a;
-	--line-strong: #b19f7d;
-	--bg-radial-a: #ffebc8;
-	--bg-radial-b: #eec2a8;
-	--bg-base-a: #efe8d4;
-	--bg-base-b: #f5f0e3;
-	--bg-base-c: #efe7d0;
-	--shadow-soft: rgba(84, 46, 18, 0.12);
-	--shadow-thin: rgba(72, 56, 34, 0.08);
-	--theme-pill: color-mix(in oklab, var(--paper) 65%, #fff0cf);
-	--theme-pill-border: color-mix(in oklab, var(--accent) 46%, #7d2e0f);
-	--theme-pill-text: color-mix(in oklab, var(--accent) 82%, #48210f);
+	--ink: #1d2e46;
+	--muted: #4e617a;
+	--paper: #edf4ff;
+	--paper-strong: #dceaff;
+	--surface: #f7fbff;
+	--surface-raised: #ffffff;
+	--accent: #ff7a1f;
+	--accent-soft: #ffa455;
+	--green: #137e69;
+	--line: #9ebfe8;
+	--line-strong: #699ad7;
+	--bg-radial-a: #cde8ff;
+	--bg-radial-b: #ffd6b7;
+	--bg-base-a: #ebf4ff;
+	--bg-base-b: #f7fbff;
+	--bg-base-c: #eff7ff;
+	--shadow-soft: rgba(48, 82, 128, 0.22);
+	--shadow-thin: rgba(54, 90, 138, 0.15);
+	--theme-pill: color-mix(in oklab, var(--paper) 70%, #fff3df);
+	--theme-pill-border: color-mix(in oklab, var(--accent) 55%, #c95d11);
+	--theme-pill-text: color-mix(in oklab, var(--ink) 60%, #97440f);
 	--grain-opacity: 0.16;
-	--grain-dot-a: rgba(14, 12, 8, 0.22);
-	--grain-dot-b: rgba(212, 118, 64, 0.18);
+	--grain-dot-a: rgba(38, 67, 108, 0.14);
+	--grain-dot-b: rgba(255, 130, 40, 0.12);
 	--status-neutral-border: var(--line);
 	--status-neutral-bg: var(--surface);
 	--status-neutral-text: var(--muted);
-	--status-success-border: #4b8f66;
-	--status-success-bg: #effaf3;
-	--status-success-text: #255238;
+	--status-success-border: #2d9b7e;
+	--status-success-bg: #ecfcf7;
+	--status-success-text: #0f5d4c;
 	--status-error-border: #c85d57;
 	--status-error-bg: #fff3f1;
 	--status-error-text: #7f2f2b;
-	--status-info-border: #5b7ab6;
-	--status-info-bg: #f2f6ff;
-	--status-info-text: #2b4676;
+	--status-info-border: #4f84ca;
+	--status-info-bg: #eef5ff;
+	--status-info-text: #234f86;
 }
 
 [data-theme="dark"] {
 	color-scheme: dark;
-	--ink: #edf2f7;
-	--muted: #a6b4c6;
-	--paper: #0e1622;
-	--paper-strong: #172231;
-	--surface: #141f2d;
-	--surface-raised: #1a2738;
-	--accent: #22c55e;
-	--accent-soft: #4ade80;
-	--green: #86efac;
-	--line: #314155;
-	--line-strong: #4f6783;
-	--bg-radial-a: #12314b;
-	--bg-radial-b: #1f2239;
-	--bg-base-a: #020617;
-	--bg-base-b: #08101d;
-	--bg-base-c: #101a2b;
-	--shadow-soft: rgba(0, 0, 0, 0.36);
-	--shadow-thin: rgba(0, 0, 0, 0.28);
-	--theme-pill: color-mix(in oklab, var(--surface) 80%, #101b2a);
-	--theme-pill-border: color-mix(in oklab, var(--line-strong) 70%, #5fa37a);
-	--theme-pill-text: color-mix(in oklab, var(--ink) 84%, #9fe8be);
+	--ink: #e9f1ff;
+	--muted: #b4c7e8;
+	--paper: #0f1b30;
+	--paper-strong: #182845;
+	--surface: #16233d;
+	--surface-raised: #203050;
+	--accent: #ff8f3a;
+	--accent-soft: #ffaf6c;
+	--green: #62d3b9;
+	--line: #3d5c8b;
+	--line-strong: #5f88c4;
+	--bg-radial-a: #203b62;
+	--bg-radial-b: #50314f;
+	--bg-base-a: #0a1325;
+	--bg-base-b: #111d35;
+	--bg-base-c: #162742;
+	--shadow-soft: rgba(2, 6, 16, 0.48);
+	--shadow-thin: rgba(6, 10, 20, 0.34);
+	--theme-pill: color-mix(in oklab, var(--surface) 78%, #212e48);
+	--theme-pill-border: color-mix(in oklab, var(--accent) 58%, #ff9552);
+	--theme-pill-text: color-mix(in oklab, var(--ink) 85%, #ffd8bd);
 	--grain-opacity: 0.2;
-	--grain-dot-a: rgba(201, 219, 241, 0.16);
-	--grain-dot-b: rgba(95, 163, 122, 0.14);
+	--grain-dot-a: rgba(187, 209, 248, 0.16);
+	--grain-dot-b: rgba(255, 164, 97, 0.14);
 	--status-neutral-border: var(--line);
 	--status-neutral-bg: var(--surface);
 	--status-neutral-text: var(--muted);
-	--status-success-border: #3f7d58;
-	--status-success-bg: #13261b;
-	--status-success-text: #9de4ba;
+	--status-success-border: #2e8f77;
+	--status-success-bg: #122d29;
+	--status-success-text: #a4f3de;
 	--status-error-border: #85413d;
 	--status-error-bg: #2f1a1a;
 	--status-error-text: #ffc7c2;
-	--status-info-border: #4a668f;
-	--status-info-bg: #152133;
-	--status-info-text: #bcd6ff;
+	--status-info-border: #4d79b3;
+	--status-info-bg: #18253c;
+	--status-info-text: #c7dcff;
 }
 
 @theme inline {
@@ -121,17 +121,36 @@ body {
 }
 
 .panel {
-	border: 1px solid var(--line);
-	background: color-mix(in oklab, var(--paper) 84%, var(--surface-raised));
+	border: 2px solid color-mix(in oklab, var(--line-strong) 56%, var(--line));
+	background: linear-gradient(
+		162deg,
+		color-mix(in oklab, var(--surface-raised) 92%, #ffffff) 0%,
+		var(--surface) 100%
+	);
 	box-shadow:
-		0 1px 0 var(--shadow-thin),
-		0 16px 44px var(--shadow-soft);
+		0 2px 0 color-mix(in oklab, var(--surface-raised) 88%, #ffffff),
+		0 10px 0 color-mix(in oklab, var(--line) 26%, transparent),
+		0 18px 34px var(--shadow-soft);
+}
+
+.clay-card {
+	border: 2px solid color-mix(in oklab, var(--line-strong) 54%, var(--line));
+	background: linear-gradient(
+		165deg,
+		color-mix(in oklab, var(--surface-raised) 94%, #ffffff) 0%,
+		var(--surface) 100%
+	);
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 86%, #ffffff),
+		0 8px 0 color-mix(in oklab, var(--line) 24%, transparent),
+		0 14px 26px var(--shadow-soft);
 }
 
 .tag {
 	border: 1px dashed var(--theme-pill-border);
 	color: var(--theme-pill-text);
 	background: var(--theme-pill);
+	box-shadow: 0 6px 14px color-mix(in oklab, var(--shadow-soft) 38%, transparent);
 }
 
 .focus-ring {
@@ -217,21 +236,26 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .theme-toggle-compact {
-	border: 1px solid color-mix(in oklab, var(--line) 88%, transparent);
-	background: color-mix(in oklab, var(--surface) 75%, transparent);
+	border: 2px solid color-mix(in oklab, var(--line-strong) 48%, var(--line));
+	background: color-mix(in oklab, var(--surface-raised) 88%, var(--surface));
 	color: color-mix(in oklab, var(--muted) 88%, var(--ink));
 	opacity: 0.88;
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 5px 0 color-mix(in oklab, var(--line) 26%, transparent);
 	transition:
 		opacity 0.2s ease,
 		background-color 0.2s ease,
 		border-color 0.2s ease,
-		box-shadow 0.2s ease;
+		box-shadow 0.2s ease,
+		transform 0.16s ease;
 }
 
 .theme-toggle-compact:hover {
 	opacity: 1;
 	border-color: var(--line-strong);
 	background: color-mix(in oklab, var(--surface-raised) 92%, transparent);
+	transform: translateY(-1px);
 }
 
 .theme-toggle-compact:focus-visible {
@@ -243,6 +267,10 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	cursor: pointer;
 	touch-action: manipulation;
 	-webkit-tap-highlight-color: transparent;
+	border-width: 2px;
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 5px 0 color-mix(in oklab, var(--line) 26%, transparent);
 	transition:
 		background-color 0.2s ease,
 		border-color 0.2s ease,
@@ -251,11 +279,19 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .action-btn:hover {
-	box-shadow: 0 6px 18px color-mix(in oklab, var(--shadow-thin) 60%, transparent);
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 7px 0 color-mix(in oklab, var(--line-strong) 32%, transparent),
+		0 12px 20px color-mix(in oklab, var(--shadow-soft) 48%, transparent);
+	transform: translateY(-1px);
 }
 
 .action-btn:active {
-	transform: translateY(1px);
+	transform: translateY(2px);
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 80%, #ffffff),
+		0 2px 0 color-mix(in oklab, var(--line-strong) 30%, transparent),
+		0 8px 14px color-mix(in oklab, var(--shadow-soft) 44%, transparent);
 }
 
 .action-btn:focus-visible {
@@ -271,9 +307,9 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .action-btn--primary {
-	border: 1px solid var(--line-strong);
-	background: var(--accent);
-	color: var(--paper);
+	border-color: color-mix(in oklab, var(--accent) 65%, #9a450f);
+	background: linear-gradient(160deg, var(--accent-soft) 0%, var(--accent) 100%);
+	color: #fff8f2;
 }
 
 .action-btn--primary:hover {
@@ -281,7 +317,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .action-btn--secondary {
-	border: 1px solid var(--line-strong);
+	border-color: var(--line-strong);
 	background: var(--surface);
 	color: var(--ink);
 }
@@ -291,7 +327,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .action-btn--quiet {
-	border: 1px solid var(--line);
+	border-color: var(--line);
 	background: var(--surface-raised);
 	color: var(--ink);
 }

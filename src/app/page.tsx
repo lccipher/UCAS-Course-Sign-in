@@ -332,7 +332,7 @@ export default function Home() {
 						</p>
 
 						{statusKind === "error" ? (
-							<div className="mt-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-3 py-2 text-xs leading-5 text-[color:var(--muted)]">
+							<div className="clay-card mt-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-3 py-2 text-xs leading-5 text-[color:var(--muted)]">
 								<p>检查学号/密码，切换日期后重试；若仍失败，稍后再试。</p>
 							</div>
 						) : null}
@@ -356,7 +356,7 @@ export default function Home() {
 						<div className="mt-4 space-y-4">
 							<div className="space-y-3 lg:hidden">
 								{filteredCourses.length === 0 ? (
-									<div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-4 py-8 text-center text-sm text-[color:var(--green)]">
+									<div className="clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-4 py-8 text-center text-sm text-[color:var(--green)]">
 										<p>暂无课程数据</p>
 										{queryAttempted ? (
 											<p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
@@ -371,7 +371,7 @@ export default function Home() {
 											<article
 												key={`${course.id}-${course.uuid}`}
 												aria-current={selected ? "true" : undefined}
-												className={`rounded-xl border p-4 ${
+												className={`clay-card rounded-xl border p-4 ${
 													selected
 														? "border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
 														: "border-[color:var(--line)] bg-[color:var(--surface-raised)]"
@@ -413,7 +413,7 @@ export default function Home() {
 								)}
 							</div>
 
-							<div className="hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
+							<div className="clay-card hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
 								<table className="min-w-full text-sm">
 									<caption className="sr-only">课程查询结果和签到码生成操作</caption>
 									<thead className="bg-[color:var(--paper-strong)] text-left text-[color:var(--muted)]">
@@ -487,7 +487,7 @@ export default function Home() {
 
 							<div
 								ref={qrSectionRef}
-								className={`rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
+								className={`clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
 									qrRelayActive ? "relay-highlight" : ""
 								}`}
 							>
