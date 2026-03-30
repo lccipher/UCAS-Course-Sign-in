@@ -371,9 +371,9 @@ export default function Home() {
 											<article
 												key={`${course.id}-${course.uuid}`}
 												aria-current={selected ? "true" : undefined}
-												className={`clay-card rounded-xl border p-4 ${
+												className={`course-item clay-card rounded-xl border p-4 ${
 													selected
-														? "border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
+														? "course-item--selected border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
 														: "border-[color:var(--line)] bg-[color:var(--surface-raised)]"
 												}`}
 											>
@@ -382,13 +382,14 @@ export default function Home() {
 														<h3 className="text-sm font-semibold leading-6 break-words">
 															{course.courseName || "--"}
 														</h3>
-														{selected ? (
-															<p className="mt-1 text-xs font-semibold text-[color:var(--green)]">
-																✓ 已选中
-															</p>
-														) : null}
 													</div>
-													<span className="rounded-md border border-[color:var(--line)] px-2 py-1 text-xs text-[color:var(--muted)]">
+													<span
+														className={`status-chip rounded-md border px-2 py-1 text-xs ${
+															course.signStatus === "1"
+																? "status-chip--signed"
+																: "status-chip--unsigned"
+														}`}
+													>
 														{course.signStatus === "1" ? "已签到" : "未签到"}
 													</span>
 												</div>
@@ -447,26 +448,29 @@ export default function Home() {
 													<tr
 														key={`${course.id}-${course.uuid}`}
 														aria-current={selected ? "true" : undefined}
-														className={
+														className={`course-row ${
 															selected
 																? "bg-[color:var(--paper-strong)]"
 																: "bg-[color:var(--surface-raised)]"
-														}
+														}`}
 													>
 														<td className="max-w-[170px] px-3 py-3 font-medium break-words">
 															{course.courseName || "--"}
-															{selected ? (
-																<span className="ml-2 rounded-md border border-[color:var(--line)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--green)]">
-																	✓ 已选中
-																</span>
-															) : null}
 														</td>
 														<td className="px-3 py-3">{course.teacherName || "--"}</td>
 														<td className="max-w-[180px] px-3 py-3 break-words">
 															{formatRange(course.classBeginTime, course.classEndTime)}
 														</td>
 														<td className="px-3 py-3">
-															{course.signStatus === "1" ? "已签到" : "未签到"}
+															<span
+																className={`status-chip rounded-md border px-2 py-1 text-xs ${
+																	course.signStatus === "1"
+																		? "status-chip--signed"
+																		: "status-chip--unsigned"
+																}`}
+															>
+																{course.signStatus === "1" ? "已签到" : "未签到"}
+															</span>
 														</td>
 														<td className="px-3 py-3">
 															<button
