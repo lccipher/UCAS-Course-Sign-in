@@ -84,6 +84,33 @@ function buildManualSignInUrl(identifier: string, expiresAt: number): string | n
 	return null;
 }
 
+function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): string {
+	if (selectedUuid) {
+		return selectedUuid;
+	}
+
+	if (!signUrl) {
+		return "unknown";
+	}
+
+	try {
+		const url = new URL(signUrl);
+		const timeTableId = url.searchParams.get("timeTableId");
+		if (timeTableId) {
+			return timeTableId;
+		}
+
+		const courseSchedId = url.searchParams.get("courseSchedId");
+		if (courseSchedId) {
+			return courseSchedId;
+		}
+	} catch {
+		return "unknown";
+	}
+
+	return "unknown";
+}
+
 function formatDateTime(timestamp: number): string {
 	return new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
 }
@@ -112,6 +139,14 @@ export default function Home() {
 	const updateStatus = (kind: StatusKind, message: string) => {
 		setStatusKind(kind);
 		setStatusText(message);
+	};
+
+	const resetGeneratedSignState = () => {
+		setSelectedUuid("");
+		setSignUrl("");
+		setQrDataUrl("");
+		setExpireAt(0);
+		setQrRelayActive(false);
 	};
 
 	useEffect(() => {
@@ -279,8 +314,8 @@ export default function Home() {
 
 		const link = document.createElement("a");
 		link.href = qrDataUrl;
-		const safeUuid = selectedUuid || "unknown";
-		link.download = `ucas-signin-${safeUuid}-${expireAt}.png`;
+		const safeIdentifier = getSignIdentifierForFilename(signUrl, selectedUuid);
+		link.download = `ucas-signin-${safeIdentifier}-${expireAt}.png`;
 		link.click();
 		updateStatus("success", "二维码已开始下载");
 	};
@@ -318,6 +353,7 @@ export default function Home() {
 						<button
 							type="button"
 							onClick={() => {
+								resetGeneratedSignState();
 								setFeatureMode("query");
 								updateStatus("idle", "输入学号、密码和日期，开始查询课程");
 							}}
@@ -330,6 +366,7 @@ export default function Home() {
 						<button
 							type="button"
 							onClick={() => {
+								resetGeneratedSignState();
 								setFeatureMode("manual");
 								updateStatus("idle", "输入课程ID或UUID，直接生成签到码");
 							}}
@@ -660,7 +697,7 @@ export default function Home() {
 										name="manualCourseIdentifier"
 										value={manualIdentifier}
 										onChange={(e) => setManualIdentifier(e.target.value.trim())}
-										placeholder="例如：1203879 或 EFD843630CE444769921BDDCD05298C7"
+										placeholder="1203879 / EFD843630CE444769921BDDCD05298C7"
 										autoComplete="off"
 										spellCheck={false}
 										required
@@ -702,7 +739,7 @@ export default function Home() {
 								qrRelayActive ? "relay-highlight" : ""
 							}`}
 						>
-							<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
+							<p className="text-sm tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
 							{hasQr ? (
 								<div className="mt-3 grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
 									<Image
