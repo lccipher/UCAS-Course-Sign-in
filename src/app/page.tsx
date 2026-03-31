@@ -132,9 +132,7 @@ export default function Home() {
 	const hasQr = Boolean(qrDataUrl);
 	const queryAttempted = statusKind !== "idle";
 	const hasKeyword = keyword.trim().length > 0;
-	const emptyHelpText = hasKeyword
-		? "可先清空筛选词，再查看全部课程。"
-		: "检查日期是否为上课日，并确认学号与密码正确。";
+	const emptyHelpText = hasKeyword ? "可先清空筛选词，再查看全部课程" : "检查日期是否为上课日，并确认学号与密码正确";
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -234,14 +232,14 @@ export default function Home() {
 					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
 						跳到主要内容
 					</a>
-					<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-						<h1 className="max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
+					<div className="mt-4 flex items-start justify-between gap-3">
+						<h1 className="min-w-0 max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
 							UCAS Course Sign in
 						</h1>
 						<button
 							type="button"
 							onClick={onToggleTheme}
-							className="theme-toggle-compact self-start rounded-full px-2.5 py-1 text-[11px] font-semibold sm:self-auto"
+							className="theme-toggle-compact hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex"
 							aria-pressed={resolvedTheme === "dark"}
 							aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
 							title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
@@ -250,7 +248,7 @@ export default function Home() {
 						</button>
 					</div>
 					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
-						1. 查询课程。2. 选择课程。3. 使用签到码。每个签到码 30 分钟后失效。
+						查询课程，选择课程后可下载签到码。每个签到码 30 分钟后失效。
 					</p>
 				</header>
 
@@ -332,12 +330,6 @@ export default function Home() {
 						>
 							{statusText}
 						</p>
-
-						{statusKind === "error" ? (
-							<div className="clay-card mt-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-3 py-2 text-xs leading-5 text-[color:var(--muted)]">
-								<p>检查学号/密码，切换日期后重试；若仍失败，稍后再试。</p>
-							</div>
-						) : null}
 					</form>
 
 					<div className="panel rounded-2xl p-5 sm:p-6">
@@ -396,8 +388,6 @@ export default function Home() {
 													</span>
 												</div>
 												<dl className="mt-2 grid grid-cols-[40px_1fr] gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
-													<dt className="font-medium">日期</dt>
-													<dd className="break-words">{course.weekDay || "--"}</dd>
 													<dt className="font-medium">教师</dt>
 													<dd className="break-words">{course.teacherName || "--"}</dd>
 													<dt className="font-medium">时段</dt>
@@ -499,9 +489,7 @@ export default function Home() {
 									qrRelayActive ? "relay-highlight" : ""
 								}`}
 							>
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									使用签到码
-								</p>
+								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
 								{hasQr ? (
 									<div className="mt-3 grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
 										<Image
