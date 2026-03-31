@@ -116,8 +116,10 @@ function formatDateTime(timestamp: number): string {
 }
 
 export default function Home() {
+	const repoUrl = "https://github.com/lccipher/UCAS-Course-Sign-in";
 	const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedThemeMode);
 	const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+	const [repoStars, setRepoStars] = useState<number | null>(null);
 	const [featureMode, setFeatureMode] = useState<FeatureMode>("query");
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
@@ -172,6 +174,38 @@ export default function Home() {
 			media.removeEventListener("change", onMediaChange);
 		};
 	}, [themeMode]);
+
+	useEffect(() => {
+		const controller = new AbortController();
+
+		const loadRepoStars = async () => {
+			try {
+				const res = await fetch("https://api.github.com/repos/lccipher/UCAS-Course-Sign-in", {
+					signal: controller.signal,
+					headers: {
+						Accept: "application/vnd.github+json",
+					},
+				});
+
+				if (!res.ok) {
+					return;
+				}
+
+				const data = (await res.json()) as { stargazers_count?: number };
+				if (typeof data.stargazers_count === "number") {
+					setRepoStars(data.stargazers_count);
+				}
+			} catch {
+				// Ignore network/rate-limit failures and keep the plain repo link.
+			}
+		};
+
+		void loadRepoStars();
+
+		return () => {
+			controller.abort();
+		};
+	}, []);
 
 	const deferredKeyword = useDeferredValue(keyword);
 
@@ -335,16 +369,45 @@ export default function Home() {
 						<h1 className="min-w-0 max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
 							UCAS Course Sign in
 						</h1>
-						<button
-							type="button"
-							onClick={onToggleTheme}
-							className="theme-toggle-compact hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex"
-							aria-pressed={resolvedTheme === "dark"}
-							aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
-							title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
-						>
-							{resolvedTheme === "dark" ? "亮色" : "暗色"}
-						</button>
+						<div className="flex shrink-0 items-center gap-2">
+							<div className="inline-flex items-stretch">
+								<a
+									href={repoUrl}
+									target="_blank"
+									rel="noreferrer"
+									className="action-btn action-btn--secondary inline-flex min-h-11 min-w-11 items-center justify-center rounded-l-lg rounded-r-none px-3 py-2 text-xs font-semibold"
+									aria-label="查看 GitHub 仓库"
+									title="查看 GitHub 仓库"
+								>
+									<svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
+										<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82a7.55 7.55 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+									</svg>
+								</a>
+								<a
+									href={`${repoUrl}/stargazers`}
+									target="_blank"
+									rel="noreferrer"
+									className="action-btn action-btn--secondary -ml-px inline-flex min-h-11 items-center gap-1 rounded-l-none rounded-r-lg px-2.5 py-2 text-xs font-semibold"
+									aria-label="查看仓库 Star"
+									title="查看仓库 Star"
+								>
+									<span aria-hidden="true">★</span>
+									<span className="numeric-tabular">
+										{repoStars !== null ? repoStars.toLocaleString() : "--"}
+									</span>
+								</a>
+							</div>
+							<button
+								type="button"
+								onClick={onToggleTheme}
+								className="theme-toggle-compact hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex"
+								aria-pressed={resolvedTheme === "dark"}
+								aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+								title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+							>
+								{resolvedTheme === "dark" ? "亮色" : "暗色"}
+							</button>
+						</div>
 					</div>
 					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
 						查询课程，选择课程后可下载签到码。每个签到码 30 分钟后失效。
