@@ -489,7 +489,7 @@ export default function Home() {
 									qrRelayActive ? "relay-highlight" : ""
 								}`}
 							>
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
+								<p className="text-sm tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
 								{hasQr ? (
 									<div className="mt-3 grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
 										<Image
