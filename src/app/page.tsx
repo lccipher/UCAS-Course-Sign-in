@@ -231,14 +231,17 @@ export default function Home() {
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
 			<main className="mx-auto w-full max-w-6xl">
 				<header className="mb-7">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-						<p className="tag inline-block self-start rounded-full px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase">
-							UCAS COURSE SIGN IN · QR GENERATOR
-						</p>
+					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
+						跳到主要内容
+					</a>
+					<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+						<h1 className="max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
+							UCAS Course Sign in
+						</h1>
 						<button
 							type="button"
 							onClick={onToggleTheme}
-							className="theme-toggle-compact self-end rounded-full px-2.5 py-1 text-[11px] font-semibold sm:self-auto"
+							className="theme-toggle-compact self-start rounded-full px-2.5 py-1 text-[11px] font-semibold sm:self-auto"
 							aria-pressed={resolvedTheme === "dark"}
 							aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
 							title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
@@ -246,12 +249,6 @@ export default function Home() {
 							{resolvedTheme === "dark" ? "亮色" : "暗色"}
 						</button>
 					</div>
-					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
-						跳到主要内容
-					</a>
-					<h1 className="mt-4 max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
-						UCAS Course Sign in
-					</h1>
 					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
 						1. 查询课程。2. 选择课程。3. 使用签到码。每个签到码 30 分钟后失效。
 					</p>
