@@ -119,12 +119,27 @@ body {
 		linear-gradient(140deg, var(--bg-base-a) 0%, var(--bg-base-b) 36%, var(--bg-base-c) 100%);
 	background-repeat: no-repeat;
 	background-size:
-		100vw 100vh,
-		100vw 100vh,
-		100% 100%;
-	background-attachment: fixed, fixed, scroll;
+		100% 100dvh,
+		100% 100dvh,
+		100% 100dvh;
+	background-position:
+		top left,
+		top right,
+		top left;
+	background-attachment: fixed, fixed, fixed;
 	min-height: 100vh;
 	font-family: var(--font-noto-sans), "Microsoft YaHei", sans-serif;
+}
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+	body {
+		/* 移动端禁用 fixed 背景，降低滚动重绘成本并规避兼容问题 */
+		background-size:
+			100% 58vh,
+			100% 56vh,
+			100% 100%;
+		background-attachment: scroll, scroll, scroll;
+	}
 }
 
 html,

@@ -254,7 +254,10 @@ export default function Home() {
 					</p>
 				</header>
 
-				<section id="main-content" className="grid gap-5 lg:grid-cols-[400px_1fr]">
+				<section
+					id="main-content"
+					className="grid items-start gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
+				>
 					<form onSubmit={onSubmit} className="panel rounded-2xl p-5 sm:p-6">
 						<div className="space-y-1">
 							<h2 className="font-[var(--font-serif)] text-2xl font-semibold">查询课程</h2>
@@ -338,16 +341,16 @@ export default function Home() {
 					</form>
 
 					<div className="panel rounded-2xl p-5 sm:p-6">
-						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 							<h2 className="font-[var(--font-serif)] text-2xl font-semibold">选择课程</h2>
 							{hasCourses ? (
 								<input
-									className="focus-ring input-surface rounded-xl border border-[color:var(--line)] px-4 py-2 text-sm"
+									className="focus-ring input-surface min-h-11 w-full rounded-xl border border-[color:var(--line)] px-4 py-2 text-sm md:w-auto md:min-w-[230px]"
 									name="courseFilter"
 									aria-label="筛选课程"
 									value={keyword}
 									onChange={(e) => setKeyword(e.target.value)}
-									placeholder="筛选课程名或教师"
+									placeholder="输入课程名或教师姓名进行筛选"
 								/>
 							) : null}
 						</div>
@@ -393,6 +396,8 @@ export default function Home() {
 													</span>
 												</div>
 												<dl className="mt-2 grid grid-cols-[40px_1fr] gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
+													<dt className="font-medium">日期</dt>
+													<dd className="break-words">{course.weekDay || "--"}</dd>
 													<dt className="font-medium">教师</dt>
 													<dd className="break-words">{course.teacherName || "--"}</dd>
 													<dt className="font-medium">时段</dt>
