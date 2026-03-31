@@ -88,18 +88,18 @@
 	--btn-primary-border: #7ea0c4;
 	--btn-primary-text: #f2f8ff;
 	--btn-primary-shadow: rgba(8, 18, 34, 0.54);
-	--status-neutral-border: var(--status-chip-signed-border);
-	--status-neutral-bg: var(--status-chip-signed-bg);
-	--status-neutral-text: var(--status-chip-signed-text);
+	--status-neutral-border: var(--line);
+	--status-neutral-bg: var(--surface);
+	--status-neutral-text: var(--muted);
 	--status-success-border: #2e8f77;
-	--status-success-bg: var(--status-chip-signed-bg);
-	--status-success-text: var(--status-chip-signed-text);
+	--status-success-bg: #143631;
+	--status-success-text: #a4f3de;
 	--status-error-border: #85413d;
 	--status-error-bg: #2f1a1a;
 	--status-error-text: #ffc7c2;
 	--status-info-border: #4d79b3;
-	--status-info-bg: var(--status-chip-signed-bg);
-	--status-info-text: var(--status-chip-signed-text);
+	--status-info-bg: #1a2740;
+	--status-info-text: #c7dcff;
 }
 
 @theme inline {
