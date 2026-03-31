@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 type CourseItem = {
 	id: string;
@@ -42,10 +42,23 @@ function getTodayInputDate(): string {
 }
 
 function formatRange(start: string, end: string): string {
+	const toTimeOnly = (value: string): string => {
+		if (!value) {
+			return "--";
+		}
+
+		const timeMatch = value.match(/(\d{2}:\d{2}(?::\d{2})?)$/);
+		if (timeMatch) {
+			return timeMatch[1];
+		}
+
+		return value;
+	};
+
 	if (!start && !end) {
 		return "--";
 	}
-	return `${start || "--"} ~ ${end || "--"}`;
+	return `${toTimeOnly(start)} ~ ${toTimeOnly(end)}`;
 }
 
 function buildSignInUrl(uuid: string, expiresAt: number): string {
@@ -103,23 +116,23 @@ export default function Home() {
 		};
 	}, [themeMode]);
 
+	const deferredKeyword = useDeferredValue(keyword);
+
 	const filteredCourses = useMemo(() => {
-		const word = keyword.trim().toLowerCase();
+		const word = deferredKeyword.trim().toLowerCase();
 		if (!word) {
 			return courses;
 		}
 		return courses.filter((item) => {
 			return item.courseName.toLowerCase().includes(word) || item.teacherName.toLowerCase().includes(word);
 		});
-	}, [courses, keyword]);
+	}, [courses, deferredKeyword]);
 
 	const hasCourses = courses.length > 0;
 	const hasQr = Boolean(qrDataUrl);
 	const queryAttempted = statusKind !== "idle";
 	const hasKeyword = keyword.trim().length > 0;
-	const emptyHelpText = hasKeyword
-		? "可先清空筛选词，再查看全部课程。"
-		: "检查日期是否为上课日，并确认学号与密码正确。";
+	const emptyHelpText = hasKeyword ? "可先清空筛选词，再查看全部课程" : "检查日期是否为上课日，并确认学号与密码正确";
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -183,12 +196,7 @@ export default function Home() {
 			return;
 		}
 
-		try {
-			await navigator.clipboard.writeText(uuid);
-			updateStatus("success", "签到码已生成，课程 UUID 已复制");
-		} catch {
-			updateStatus("info", `签到码已生成，当前课程 UUID：${uuid}`);
-		}
+		updateStatus("success", "签到码已生成");
 
 		if (window.matchMedia("(max-width: 1023px)").matches) {
 			setQrRelayActive(true);
@@ -221,14 +229,17 @@ export default function Home() {
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
 			<main className="mx-auto w-full max-w-6xl">
 				<header className="mb-7">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-						<p className="tag inline-block self-start rounded-full px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase">
-							UCAS COURSE SIGN IN · QR GENERATOR
-						</p>
+					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
+						跳到主要内容
+					</a>
+					<div className="mt-4 flex items-start justify-between gap-3">
+						<h1 className="min-w-0 max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
+							UCAS Course Sign in
+						</h1>
 						<button
 							type="button"
 							onClick={onToggleTheme}
-							className="theme-toggle-compact self-end rounded-full px-2.5 py-1 text-[11px] font-semibold sm:self-auto"
+							className="theme-toggle-compact hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex"
 							aria-pressed={resolvedTheme === "dark"}
 							aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
 							title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
@@ -236,18 +247,15 @@ export default function Home() {
 							{resolvedTheme === "dark" ? "亮色" : "暗色"}
 						</button>
 					</div>
-					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
-						跳到主要内容
-					</a>
-					<h1 className="mt-4 max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
-						UCAS Course Sign in
-					</h1>
 					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
-						1. 查询课程。2. 选择课程。3. 使用签到码。每个签到码 30 分钟后失效。
+						查询课程，选择课程后可下载签到码。每个签到码 30 分钟后失效。
 					</p>
 				</header>
 
-				<section id="main-content" className="grid gap-5 lg:grid-cols-[400px_1fr]">
+				<section
+					id="main-content"
+					className="grid items-start gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
+				>
 					<form onSubmit={onSubmit} className="panel rounded-2xl p-5 sm:p-6">
 						<div className="space-y-1">
 							<h2 className="font-[var(--font-serif)] text-2xl font-semibold">查询课程</h2>
@@ -322,25 +330,19 @@ export default function Home() {
 						>
 							{statusText}
 						</p>
-
-						{statusKind === "error" ? (
-							<div className="mt-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-3 py-2 text-xs leading-5 text-[color:var(--muted)]">
-								<p>检查学号/密码，切换日期后重试；若仍失败，稍后再试。</p>
-							</div>
-						) : null}
 					</form>
 
 					<div className="panel rounded-2xl p-5 sm:p-6">
-						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 							<h2 className="font-[var(--font-serif)] text-2xl font-semibold">选择课程</h2>
 							{hasCourses ? (
 								<input
-									className="focus-ring input-surface rounded-xl border border-[color:var(--line)] px-4 py-2 text-sm"
+									className="focus-ring input-surface min-h-11 w-full rounded-xl border border-[color:var(--line)] px-4 py-2 text-sm md:w-auto md:min-w-[230px]"
 									name="courseFilter"
 									aria-label="筛选课程"
 									value={keyword}
 									onChange={(e) => setKeyword(e.target.value)}
-									placeholder="筛选课程名或教师"
+									placeholder="输入课程名或教师姓名进行筛选"
 								/>
 							) : null}
 						</div>
@@ -348,7 +350,7 @@ export default function Home() {
 						<div className="mt-4 space-y-4">
 							<div className="space-y-3 lg:hidden">
 								{filteredCourses.length === 0 ? (
-									<div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-4 py-8 text-center text-sm text-[color:var(--green)]">
+									<div className="clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-4 py-8 text-center text-sm text-[color:var(--green)]">
 										<p>暂无课程数据</p>
 										{queryAttempted ? (
 											<p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
@@ -363,9 +365,9 @@ export default function Home() {
 											<article
 												key={`${course.id}-${course.uuid}`}
 												aria-current={selected ? "true" : undefined}
-												className={`rounded-xl border p-4 ${
+												className={`course-item clay-card rounded-xl border p-4 ${
 													selected
-														? "border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
+														? "course-item--selected border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
 														: "border-[color:var(--line)] bg-[color:var(--surface-raised)]"
 												}`}
 											>
@@ -374,13 +376,14 @@ export default function Home() {
 														<h3 className="text-sm font-semibold leading-6 break-words">
 															{course.courseName || "--"}
 														</h3>
-														{selected ? (
-															<p className="mt-1 text-xs font-semibold text-[color:var(--green)]">
-																✓ 已选中
-															</p>
-														) : null}
 													</div>
-													<span className="rounded-md border border-[color:var(--line)] px-2 py-1 text-xs text-[color:var(--muted)]">
+													<span
+														className={`status-chip rounded-md border px-2 py-1 text-xs ${
+															course.signStatus === "1"
+																? "status-chip--signed"
+																: "status-chip--unsigned"
+														}`}
+													>
 														{course.signStatus === "1" ? "已签到" : "未签到"}
 													</span>
 												</div>
@@ -405,7 +408,7 @@ export default function Home() {
 								)}
 							</div>
 
-							<div className="hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
+							<div className="render-skip clay-card hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
 								<table className="min-w-full text-sm">
 									<caption className="sr-only">课程查询结果和签到码生成操作</caption>
 									<thead className="bg-[color:var(--paper-strong)] text-left text-[color:var(--muted)]">
@@ -439,26 +442,29 @@ export default function Home() {
 													<tr
 														key={`${course.id}-${course.uuid}`}
 														aria-current={selected ? "true" : undefined}
-														className={
+														className={`course-row ${
 															selected
 																? "bg-[color:var(--paper-strong)]"
 																: "bg-[color:var(--surface-raised)]"
-														}
+														}`}
 													>
 														<td className="max-w-[170px] px-3 py-3 font-medium break-words">
 															{course.courseName || "--"}
-															{selected ? (
-																<span className="ml-2 rounded-md border border-[color:var(--line)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--green)]">
-																	✓ 已选中
-																</span>
-															) : null}
 														</td>
 														<td className="px-3 py-3">{course.teacherName || "--"}</td>
 														<td className="max-w-[180px] px-3 py-3 break-words">
 															{formatRange(course.classBeginTime, course.classEndTime)}
 														</td>
 														<td className="px-3 py-3">
-															{course.signStatus === "1" ? "已签到" : "未签到"}
+															<span
+																className={`status-chip rounded-md border px-2 py-1 text-xs ${
+																	course.signStatus === "1"
+																		? "status-chip--signed"
+																		: "status-chip--unsigned"
+																}`}
+															>
+																{course.signStatus === "1" ? "已签到" : "未签到"}
+															</span>
 														</td>
 														<td className="px-3 py-3">
 															<button
@@ -477,22 +483,13 @@ export default function Home() {
 								</table>
 							</div>
 
-							<div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									当前选中课程 UUID
-								</p>
-								<p className="mt-2 break-all font-mono text-sm">{selectedUuid || "尚未选择课程"}</p>
-							</div>
-
 							<div
 								ref={qrSectionRef}
-								className={`rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
+								className={`render-skip clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
 									qrRelayActive ? "relay-highlight" : ""
 								}`}
 							>
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									使用签到码
-								</p>
+								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
 								{hasQr ? (
 									<div className="mt-3 grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
 										<Image
@@ -540,7 +537,7 @@ export default function Home() {
 										</div>
 									</div>
 								) : (
-									<p className="mt-2 text-sm text-[color:var(--green)]">先选择课程，再生成签到码。</p>
+									<p className="mt-2 text-sm">先选择课程，再生成签到码</p>
 								)}
 							</div>
 						</div>
