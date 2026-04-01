@@ -519,54 +519,64 @@ export default function Home() {
 					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
 						跳到主要内容
 					</a>
-					<div className="mt-4 flex items-start justify-between gap-3">
-						<h1 className="min-w-0 max-w-3xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
+					<div className="mt-4">
+						<h1 className="max-w-4xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
 							UCAS Course Sign in
 						</h1>
-						<div className="flex shrink-0 items-center gap-2">
-							<div className="inline-flex items-stretch">
-								<a
-									href={repoUrl}
-									target="_blank"
-									rel="noreferrer"
-									className="action-btn action-btn--secondary inline-flex min-h-11 min-w-11 items-center justify-center rounded-l-lg rounded-r-none px-3 py-2 text-xs font-semibold"
-									aria-label="查看 GitHub 仓库"
-									title="查看 GitHub 仓库"
-								>
-									<svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
-										<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82a7.55 7.55 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
-									</svg>
-								</a>
-								<a
-									href={`${repoUrl}/stargazers`}
-									target="_blank"
-									rel="noreferrer"
-									className="action-btn action-btn--secondary -ml-px inline-flex min-h-11 items-center gap-1 rounded-l-none rounded-r-lg px-2.5 py-2 text-xs font-semibold"
-									aria-label="查看仓库 Star"
-									title="查看仓库 Star"
-								>
-									<span aria-hidden="true">★</span>
-									<span className="numeric-tabular">
-										{repoStars !== null ? repoStars.toLocaleString() : "--"}
-									</span>
-								</a>
-							</div>
-							<button
-								type="button"
-								onClick={onToggleTheme}
-								className="theme-toggle-compact hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex"
-								aria-pressed={resolvedTheme === "dark"}
-								aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
-								title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
-							>
-								{resolvedTheme === "dark" ? "亮色" : "暗色"}
-							</button>
-						</div>
 					</div>
 					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
 						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID，生成签到码。每个签到码
 						30 分钟后失效。
 					</p>
+					<div className="utility-toolbar mt-4 flex flex-wrap items-center gap-2.5">
+						<div className="repo-link-group inline-flex min-h-11 items-stretch">
+							<a
+								href={repoUrl}
+								target="_blank"
+								rel="noreferrer"
+								className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-l-xl rounded-r-none px-3.5 py-2 text-xs font-semibold sm:text-sm"
+								aria-label="查看 GitHub 仓库"
+								title="查看 GitHub 仓库"
+							>
+								<svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
+									<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82a7.55 7.55 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+								</svg>
+								<span>GitHub 仓库</span>
+							</a>
+							<a
+								href={`${repoUrl}/stargazers`}
+								target="_blank"
+								rel="noreferrer"
+								className="repo-link-stars -ml-px inline-flex min-h-11 items-center gap-1.5 rounded-l-none rounded-r-xl px-3 py-2 text-xs font-semibold sm:text-sm"
+								aria-label="查看仓库 Star"
+								title="查看仓库 Star"
+							>
+								<svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
+									<path d="m10 1.5 2.42 4.9 5.4.78-3.9 3.8.92 5.37L10 13.9l-4.84 2.55.92-5.37-3.9-3.8 5.4-.78L10 1.5Z" />
+								</svg>
+								<span className="numeric-tabular">
+									{repoStars !== null ? repoStars.toLocaleString() : "--"}
+								</span>
+							</a>
+						</div>
+						<button
+							type="button"
+							onClick={onToggleTheme}
+							className="theme-toggle-compact inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
+							aria-pressed={resolvedTheme === "dark"}
+							aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+							title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+						>
+							<svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+								{resolvedTheme === "dark" ? (
+									<path d="M12 3a1 1 0 0 1 1 1v1.2a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm0 14.8a1 1 0 0 1 1 1V20a1 1 0 1 1-2 0v-1.2a1 1 0 0 1 1-1Zm8-5.8a1 1 0 0 1 1 1 1 1 0 0 1-1 1h-1.2a1 1 0 1 1 0-2H20ZM5.2 12a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2h1.2Zm11.2-5.66a1 1 0 0 1 1.42 0l.85.85a1 1 0 1 1-1.41 1.42l-.86-.85a1 1 0 0 1 0-1.42Zm-10.24 0a1 1 0 0 1 1.42 1.42l-.86.85A1 1 0 0 1 5.33 7.2l.85-.85Zm11.39 10.24.85.85a1 1 0 1 1-1.41 1.42l-.86-.85a1 1 0 1 1 1.42-1.42Zm-10.24 0a1 1 0 0 1 0 1.42l-.86.85a1 1 0 1 1-1.41-1.42l.85-.85a1 1 0 0 1 1.42 0ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z" />
+								) : (
+									<path d="M21.75 15.08a.75.75 0 0 0-.95-.46 8.23 8.23 0 0 1-2.62.43 8.24 8.24 0 0 1-8.23-8.23c0-.9.14-1.77.43-2.62a.75.75 0 0 0-.95-.95A9.75 9.75 0 1 0 21.3 16.03a.75.75 0 0 0 .45-.95Z" />
+								)}
+							</svg>
+							<span>{resolvedTheme === "dark" ? "切换亮色" : "切换暗色"}</span>
+						</button>
+					</div>
 					<div className="mt-4 flex flex-wrap gap-2">
 						<button
 							type="button"

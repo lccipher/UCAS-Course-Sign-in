@@ -280,13 +280,18 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .theme-toggle-compact {
-	border: 2px solid color-mix(in oklab, var(--line-strong) 48%, var(--line));
-	background: color-mix(in oklab, var(--surface-raised) 88%, var(--surface));
-	color: color-mix(in oklab, var(--muted) 88%, var(--ink));
-	opacity: 0.88;
+	border: 2px solid color-mix(in oklab, var(--line-strong) 58%, var(--line));
+	background: linear-gradient(
+		155deg,
+		color-mix(in oklab, var(--surface-raised) 94%, #ffffff) 0%,
+		color-mix(in oklab, var(--paper-strong) 78%, var(--surface)) 100%
+	);
+	color: color-mix(in oklab, var(--ink) 88%, var(--muted));
+	opacity: 1;
 	box-shadow:
 		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
-		0 5px 0 color-mix(in oklab, var(--line) 26%, transparent);
+		0 7px 0 color-mix(in oklab, var(--line) 28%, transparent),
+		0 12px 22px color-mix(in oklab, var(--shadow-soft) 42%, transparent);
 	transition:
 		opacity 0.2s ease,
 		background-color 0.2s ease,
@@ -296,15 +301,66 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .theme-toggle-compact:hover {
-	opacity: 1;
-	border-color: var(--line-strong);
-	background: color-mix(in oklab, var(--surface-raised) 92%, transparent);
+	border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+	background: linear-gradient(
+		155deg,
+		color-mix(in oklab, var(--surface-raised) 97%, #ffffff) 0%,
+		color-mix(in oklab, var(--paper-strong) 84%, var(--surface)) 100%
+	);
 	transform: translateY(-1px);
 }
 
 .theme-toggle-compact:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-soft) 30%, transparent);
+}
+
+.repo-link-main,
+.repo-link-stars {
+	border: 2px solid color-mix(in oklab, var(--line-strong) 52%, var(--line));
+	color: var(--ink);
+	text-decoration: none;
+	transition:
+		background-color 0.2s ease,
+		border-color 0.2s ease,
+		box-shadow 0.2s ease,
+		transform 0.16s ease;
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 6px 0 color-mix(in oklab, var(--line) 26%, transparent);
+}
+
+.repo-link-main {
+	background: linear-gradient(
+		160deg,
+		color-mix(in oklab, var(--surface-raised) 96%, #ffffff) 0%,
+		color-mix(in oklab, var(--surface) 80%, var(--paper)) 100%
+	);
+}
+
+.repo-link-stars {
+	background: linear-gradient(
+		160deg,
+		color-mix(in oklab, var(--status-info-bg) 68%, var(--surface-raised)) 0%,
+		color-mix(in oklab, var(--surface) 86%, var(--paper-strong)) 100%
+	);
+	color: color-mix(in oklab, var(--status-info-text) 72%, var(--ink));
+}
+
+.repo-link-main:hover,
+.repo-link-stars:hover {
+	border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+	transform: translateY(-1px);
+	box-shadow:
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 8px 0 color-mix(in oklab, var(--line-strong) 30%, transparent),
+		0 12px 20px color-mix(in oklab, var(--shadow-soft) 48%, transparent);
+}
+
+.repo-link-main:focus-visible,
+.repo-link-stars:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-soft) 35%, transparent);
 }
 
 .action-btn {
