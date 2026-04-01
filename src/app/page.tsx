@@ -20,9 +20,21 @@ type QueryResponse = {
 	courses: CourseItem[];
 };
 
+type DirectSignResponse = {
+	success?: boolean;
+	message?: string;
+	upstreamStatus?: string;
+	result?: {
+		stuSignId?: string;
+		stuSignStatus?: string;
+	};
+};
+
 type ThemeMode = "system" | "light" | "dark";
 type StatusKind = "idle" | "loading" | "success" | "error" | "info";
 type FeatureMode = "query" | "manual";
+
+const ACTION_STATUS_DEFAULT_TEXT = "生成签到码后，可在此查看下载、复制和点击签到的状态信息";
 
 function getSavedThemeMode(): ThemeMode {
 	if (typeof window === "undefined") {
@@ -130,8 +142,11 @@ export default function Home() {
 	const [selectedUuid, setSelectedUuid] = useState("");
 	const [statusText, setStatusText] = useState("输入学号、密码和日期，开始查询课程");
 	const [statusKind, setStatusKind] = useState<StatusKind>("idle");
+	const [actionStatusText, setActionStatusText] = useState(ACTION_STATUS_DEFAULT_TEXT);
+	const [actionStatusKind, setActionStatusKind] = useState<StatusKind>("idle");
 	const [loading, setLoading] = useState(false);
 	const [manualLoading, setManualLoading] = useState(false);
+	const [directSignLoading, setDirectSignLoading] = useState(false);
 	const [signUrl, setSignUrl] = useState("");
 	const [qrDataUrl, setQrDataUrl] = useState("");
 	const [expireAt, setExpireAt] = useState(0);
@@ -143,12 +158,35 @@ export default function Home() {
 		setStatusText(message);
 	};
 
+	const updateActionStatus = (kind: StatusKind, message: string) => {
+		setActionStatusKind(kind);
+		setActionStatusText(message);
+	};
+
 	const resetGeneratedSignState = () => {
 		setSelectedUuid("");
 		setSignUrl("");
 		setQrDataUrl("");
 		setExpireAt(0);
 		setQrRelayActive(false);
+		setActionStatusKind("idle");
+		setActionStatusText(ACTION_STATUS_DEFAULT_TEXT);
+	};
+
+	const getStatusBannerClassName = (kind: StatusKind): string => {
+		if (kind === "error") {
+			return "status-banner--error";
+		}
+		if (kind === "success") {
+			return "status-banner--success";
+		}
+		if (kind === "info") {
+			return "status-banner--info";
+		}
+		if (kind === "loading") {
+			return "status-banner--loading";
+		}
+		return "status-banner--neutral";
 	};
 
 	useEffect(() => {
@@ -283,11 +321,11 @@ export default function Home() {
 			setQrDataUrl(imageUrl);
 		} catch {
 			setQrDataUrl("");
-			updateStatus("error", "签到码生成失败，请重新选择课程");
+			updateActionStatus("error", "签到码生成失败，请重新选择课程");
 			return;
 		}
 
-		updateStatus("success", "签到码已生成");
+		updateActionStatus("success", "签到码已生成，可点击签到或下载二维码");
 
 		if (window.matchMedia("(max-width: 1023px)").matches) {
 			setQrRelayActive(true);
@@ -295,7 +333,7 @@ export default function Home() {
 			window.requestAnimationFrame(() => {
 				qrSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 			});
-			updateStatus("info", "已生成签到码");
+			updateActionStatus("info", "已生成签到码");
 		}
 	};
 
@@ -351,12 +389,128 @@ export default function Home() {
 		const safeIdentifier = getSignIdentifierForFilename(signUrl, selectedUuid);
 		link.download = `ucas-signin-${safeIdentifier}-${expireAt}.png`;
 		link.click();
+		if (featureMode === "query") {
+			updateActionStatus("success", "二维码已开始下载");
+			return;
+		}
 		updateStatus("success", "二维码已开始下载");
+	};
+
+	const onCopySignUrl = async () => {
+		if (!signUrl) {
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(signUrl);
+			if (featureMode === "query") {
+				updateActionStatus("info", "已复制签到链接");
+				return;
+			}
+			updateStatus("info", "已复制签到链接");
+		} catch {
+			if (featureMode === "query") {
+				updateActionStatus("error", "复制签到链接失败，请手动复制");
+				return;
+			}
+			updateStatus("error", "复制签到链接失败，请手动复制");
+		}
+	};
+
+	const refreshCoursesAfterSign = async (): Promise<{ ok: true; total: number } | { ok: false }> => {
+		try {
+			const res = await fetch("/api/course-uuid/query", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					username: username.trim(),
+					password,
+					date: toYyyyMMdd(date),
+				}),
+			});
+
+			const data = (await res.json()) as QueryResponse & { message?: string };
+			if (!res.ok) {
+				return { ok: false };
+			}
+
+			setCourses(data.courses ?? []);
+			return { ok: true, total: data.total ?? (data.courses ?? []).length };
+		} catch {
+			return { ok: false };
+		}
+	};
+
+	const onDirectSign = async () => {
+		const timeTableId =
+			selectedUuid ||
+			(() => {
+				try {
+					const url = new URL(signUrl);
+					return url.searchParams.get("timeTableId") ?? "";
+				} catch {
+					return "";
+				}
+			})();
+
+		if (!timeTableId) {
+			updateActionStatus("error", "请先在查询课程模式选择课程并生成签到码");
+			return;
+		}
+
+		const safeUsername = username.trim();
+		if (!safeUsername || !password) {
+			updateActionStatus("error", "请先输入学号和密码");
+			return;
+		}
+
+		setDirectSignLoading(true);
+		updateActionStatus("loading", "正在发起签到…");
+
+		try {
+			const res = await fetch("/api/course-uuid/sign", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					username: safeUsername,
+					password,
+					timeTableId,
+				}),
+			});
+
+			const data = (await res.json()) as DirectSignResponse;
+
+			if (!res.ok || !data.success) {
+				updateActionStatus("error", data.message ?? "签到失败，请稍后重试");
+				return;
+			}
+
+			const signIdText = data.result?.stuSignId ? `（签到记录 ${data.result.stuSignId}）` : "";
+			const refreshed = await refreshCoursesAfterSign();
+			if (refreshed.ok) {
+				updateActionStatus("success", `${data.message ?? "签到成功"}${signIdText}，课程状态已刷新`);
+			} else {
+				updateActionStatus(
+					"info",
+					`${data.message ?? "签到成功"}${signIdText}，但课程状态刷新失败，请手动查询`,
+				);
+			}
+		} catch {
+			updateActionStatus("error", "网络异常，签到请求未完成");
+		} finally {
+			setDirectSignLoading(false);
+		}
 	};
 
 	const onToggleTheme = () => {
 		setThemeMode(resolvedTheme === "dark" ? "light" : "dark");
 	};
+
+	const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid;
 
 	return (
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
@@ -410,7 +564,8 @@ export default function Home() {
 						</div>
 					</div>
 					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
-						查询课程，选择课程后可下载签到码。每个签到码 30 分钟后失效。
+						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID，生成签到码。每个签到码
+						30 分钟后失效。
 					</p>
 					<div className="mt-4 flex flex-wrap gap-2">
 						<button
@@ -507,17 +662,7 @@ export default function Home() {
 								role="status"
 								aria-live={statusKind === "error" ? "assertive" : "polite"}
 								aria-atomic="true"
-								className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${
-									statusKind === "error"
-										? "status-banner--error"
-										: statusKind === "success"
-											? "status-banner--success"
-											: statusKind === "info"
-												? "status-banner--info"
-												: statusKind === "loading"
-													? "status-banner--loading"
-													: "status-banner--neutral"
-								}`}
+								className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${getStatusBannerClassName(statusKind)}`}
 							>
 								{statusText}
 							</p>
@@ -701,10 +846,22 @@ export default function Home() {
 													有效期截止：
 													<span className="font-semibold">{formatDateTime(expireAt)}</span>
 												</p>
+												<p>
+													课程UUID：
+													<span className="font-semibold">{selectedUuid}</span>
+												</p>
 												<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
 													{signUrl}
 												</p>
 												<div className="flex flex-wrap gap-2">
+													<button
+														type="button"
+														onClick={onDirectSign}
+														disabled={directSignDisabled}
+														className="action-btn action-btn--primary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+													>
+														{directSignLoading ? "签到中..." : "点击签到"}
+													</button>
 													<button
 														type="button"
 														onClick={onDownloadQr}
@@ -714,22 +871,20 @@ export default function Home() {
 													</button>
 													<button
 														type="button"
-														onClick={async () => {
-															if (!signUrl) {
-																return;
-															}
-															try {
-																await navigator.clipboard.writeText(signUrl);
-																updateStatus("info", "已复制签到链接");
-															} catch {
-																updateStatus("error", "复制签到链接失败，请手动复制");
-															}
-														}}
+														onClick={onCopySignUrl}
 														className="action-btn action-btn--quiet min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
 													>
 														复制签到链接
 													</button>
 												</div>
+												<p
+													role="status"
+													aria-live={actionStatusKind === "error" ? "assertive" : "polite"}
+													aria-atomic="true"
+													className={`status-banner rounded-xl px-3 py-2 text-xs leading-6 ${getStatusBannerClassName(actionStatusKind)}`}
+												>
+													{actionStatusText}
+												</p>
 											</div>
 										</div>
 									) : (
@@ -780,17 +935,7 @@ export default function Home() {
 								role="status"
 								aria-live={statusKind === "error" ? "assertive" : "polite"}
 								aria-atomic="true"
-								className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${
-									statusKind === "error"
-										? "status-banner--error"
-										: statusKind === "success"
-											? "status-banner--success"
-											: statusKind === "info"
-												? "status-banner--info"
-												: statusKind === "loading"
-													? "status-banner--loading"
-													: "status-banner--neutral"
-								}`}
+								className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${getStatusBannerClassName(statusKind)}`}
 							>
 								{statusText}
 							</p>
@@ -831,17 +976,7 @@ export default function Home() {
 											</button>
 											<button
 												type="button"
-												onClick={async () => {
-													if (!signUrl) {
-														return;
-													}
-													try {
-														await navigator.clipboard.writeText(signUrl);
-														updateStatus("info", "已复制签到链接");
-													} catch {
-														updateStatus("error", "复制签到链接失败，请手动复制");
-													}
-												}}
+												onClick={onCopySignUrl}
 												className="action-btn action-btn--quiet min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
 											>
 												复制签到链接
