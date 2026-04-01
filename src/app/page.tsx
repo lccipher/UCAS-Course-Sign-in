@@ -524,7 +524,7 @@ export default function Home() {
 							UCAS Course Sign in
 						</h1>
 					</div>
-					<p className="mt-4 max-w-2xl text-sm leading-7 sm:text-base">
+					<p className="mt-4 text-sm leading-7 sm:text-base">
 						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID，生成签到码。每个签到码
 						30 分钟后失效。
 					</p>
@@ -838,11 +838,8 @@ export default function Home() {
 										qrRelayActive ? "relay-highlight" : ""
 									}`}
 								>
-									<p className="text-sm tracking-[0.08em] uppercase text-[color:var(--green)]">
-										签到码
-									</p>
 									{hasQr ? (
-										<div className="mt-3 grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
+										<div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
 											<Image
 												src={qrDataUrl}
 												alt="签到码"
@@ -855,10 +852,6 @@ export default function Home() {
 												<p>
 													有效期截止：
 													<span className="font-semibold">{formatDateTime(expireAt)}</span>
-												</p>
-												<p>
-													课程UUID：
-													<span className="font-semibold">{selectedUuid}</span>
 												</p>
 												<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
 													{signUrl}
@@ -898,7 +891,7 @@ export default function Home() {
 											</div>
 										</div>
 									) : (
-										<p className="mt-2 text-sm">先选择课程，再生成签到码</p>
+										<p className="text-sm text-center text-[color:var(--green)]">暂无签到码数据</p>
 									)}
 								</div>
 							</div>
@@ -912,9 +905,6 @@ export default function Home() {
 						<form onSubmit={onManualGenerate} className="panel rounded-2xl p-5 sm:p-6">
 							<div className="space-y-1">
 								<h2 className="font-[var(--font-serif)] text-2xl font-semibold">手动生成签到码</h2>
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									输入课程ID或UUID，自动识别并生成签到码
-								</p>
 							</div>
 
 							<div className="mt-6 space-y-4">
@@ -957,9 +947,8 @@ export default function Home() {
 								qrRelayActive ? "relay-highlight" : ""
 							}`}
 						>
-							<p className="text-sm tracking-[0.08em] uppercase text-[color:var(--green)]">签到码</p>
 							{hasQr ? (
-								<div className="mt-3 grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
+								<div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
 									<Image
 										src={qrDataUrl}
 										alt="签到码"
@@ -995,7 +984,7 @@ export default function Home() {
 									</div>
 								</div>
 							) : (
-								<p className="mt-2 text-sm">先输入课程ID或UUID，再生成签到码</p>
+								<p className="text-sm text-center text-[color:var(--green)]">暂无签到码数据</p>
 							)}
 						</div>
 					</section>
