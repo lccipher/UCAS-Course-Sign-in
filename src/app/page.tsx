@@ -34,7 +34,16 @@ type ThemeMode = "system" | "light" | "dark";
 type StatusKind = "idle" | "loading" | "success" | "error" | "info";
 type FeatureMode = "query" | "manual";
 
+type RepoStarsCache = {
+	stars: number;
+	updatedAt: number;
+};
+
+const REPO_STARS_CACHE_KEY = "ucas-repo-stars-cache-v1";
+const REPO_STARS_CACHE_TTL_MS = 1000 * 60 * 30;
+
 const ACTION_STATUS_DEFAULT_TEXT = "生成签到码后，可在此查看下载、复制和点击签到的状态信息";
+const SIGN_BASE_URL = "https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action";
 
 function getSavedThemeMode(): ThemeMode {
 	if (typeof window === "undefined") {
@@ -75,7 +84,7 @@ function formatRange(start: string, end: string): string {
 }
 
 function buildSignInUrl(uuid: string, expiresAt: number): string {
-	return `http://124.16.75.106:8081/app/course/stu_scan_sign.action?timeTableId=${encodeURIComponent(uuid)}&timestamp=${expiresAt}`;
+	return `${SIGN_BASE_URL}?timeTableId=${encodeURIComponent(uuid)}&timestamp=${expiresAt}`;
 }
 
 function buildManualSignInUrl(identifier: string, expiresAt: number): string | null {
@@ -85,12 +94,12 @@ function buildManualSignInUrl(identifier: string, expiresAt: number): string | n
 	}
 
 	if (/^\d+$/.test(raw)) {
-		return `https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action?courseSchedId=${encodeURIComponent(raw)}&timestamp=${expiresAt}`;
+		return `${SIGN_BASE_URL}?courseSchedId=${encodeURIComponent(raw)}&timestamp=${expiresAt}`;
 	}
 
 	const compact = raw.replace(/-/g, "");
 	if (/^[0-9a-fA-F]{32}$/.test(compact)) {
-		return `https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action?timeTableId=${encodeURIComponent(compact.toUpperCase())}&timestamp=${expiresAt}`;
+		return `${SIGN_BASE_URL}?timeTableId=${encodeURIComponent(compact.toUpperCase())}&timestamp=${expiresAt}`;
 	}
 
 	return null;
@@ -125,6 +134,39 @@ function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): st
 
 function formatDateTime(timestamp: number): string {
 	return new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
+}
+
+function readRepoStarsCache(): RepoStarsCache | null {
+	if (typeof window === "undefined") {
+		return null;
+	}
+
+	try {
+		const raw = window.localStorage.getItem(REPO_STARS_CACHE_KEY);
+		if (!raw) {
+			return null;
+		}
+		const parsed = JSON.parse(raw) as RepoStarsCache;
+		if (typeof parsed?.stars !== "number" || typeof parsed?.updatedAt !== "number") {
+			return null;
+		}
+		return parsed;
+	} catch {
+		return null;
+	}
+}
+
+function writeRepoStarsCache(stars: number): void {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	try {
+		const payload: RepoStarsCache = { stars, updatedAt: Date.now() };
+		window.localStorage.setItem(REPO_STARS_CACHE_KEY, JSON.stringify(payload));
+	} catch {
+		// Ignore cache write failures.
+	}
 }
 
 export default function Home() {
@@ -215,6 +257,16 @@ export default function Home() {
 
 	useEffect(() => {
 		const controller = new AbortController();
+		const cached = readRepoStarsCache();
+
+		if (cached) {
+			setRepoStars(cached.stars);
+			if (Date.now() - cached.updatedAt < REPO_STARS_CACHE_TTL_MS) {
+				return () => {
+					controller.abort();
+				};
+			}
+		}
 
 		const loadRepoStars = async () => {
 			try {
@@ -232,6 +284,7 @@ export default function Home() {
 				const data = (await res.json()) as { stargazers_count?: number };
 				if (typeof data.stargazers_count === "number") {
 					setRepoStars(data.stargazers_count);
+					writeRepoStarsCache(data.stargazers_count);
 				}
 			} catch {
 				// Ignore network/rate-limit failures and keep the plain repo link.
@@ -516,7 +569,7 @@ export default function Home() {
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
 			<main className="mx-auto w-full max-w-6xl">
 				<header className="mb-7">
-					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
+					<a href="#main-content" className="sr-only focus:not-sr-only skip-link">
 						跳到主要内容
 					</a>
 					<div className="mt-4">
@@ -534,23 +587,14 @@ export default function Home() {
 								href={repoUrl}
 								target="_blank"
 								rel="noreferrer"
-								className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-l-xl rounded-r-none px-3.5 py-2 text-xs font-semibold sm:text-sm"
+								className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
 								aria-label="查看 GitHub 仓库"
 								title="查看 GitHub 仓库"
 							>
 								<svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
 									<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82a7.55 7.55 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
 								</svg>
-								<span>GitHub 仓库</span>
-							</a>
-							<a
-								href={`${repoUrl}/stargazers`}
-								target="_blank"
-								rel="noreferrer"
-								className="repo-link-stars -ml-px inline-flex min-h-11 items-center gap-1.5 rounded-l-none rounded-r-xl px-3 py-2 text-xs font-semibold sm:text-sm"
-								aria-label="查看仓库 Star"
-								title="查看仓库 Star"
-							>
+								<span>GitHub</span>
 								<svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
 									<path d="m10 1.5 2.42 4.9 5.4.78-3.9 3.8.92 5.37L10 13.9l-4.84 2.55.92-5.37-3.9-3.8 5.4-.78L10 1.5Z" />
 								</svg>
@@ -710,7 +754,6 @@ export default function Home() {
 											return (
 												<article
 													key={`${course.id}-${course.uuid}`}
-													aria-current={selected ? "true" : undefined}
 													className={`course-item clay-card rounded-xl border p-4 ${
 														selected
 															? "course-item--selected border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
@@ -787,7 +830,6 @@ export default function Home() {
 													return (
 														<tr
 															key={`${course.id}-${course.uuid}`}
-															aria-current={selected ? "true" : undefined}
 															className={`course-row ${
 																selected
 																	? "bg-[color:var(--paper-strong)]"
@@ -905,6 +947,9 @@ export default function Home() {
 						<form onSubmit={onManualGenerate} className="panel rounded-2xl p-5 sm:p-6">
 							<div className="space-y-1">
 								<h2 className="font-[var(--font-serif)] text-2xl font-semibold">手动生成签到码</h2>
+								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
+									课程ID为7位纯数字，UUID为32位十六进制字符串
+								</p>
 							</div>
 
 							<div className="mt-6 space-y-4">
@@ -914,7 +959,7 @@ export default function Home() {
 										className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
 										name="manualCourseIdentifier"
 										value={manualIdentifier}
-										onChange={(e) => setManualIdentifier(e.target.value.trim())}
+										onChange={(e) => setManualIdentifier(e.target.value)}
 										placeholder="1203879 / EFD843630CE444769921BDDCD05298C7"
 										autoComplete="off"
 										spellCheck={false}

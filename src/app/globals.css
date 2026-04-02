@@ -8,30 +8,26 @@
 	--paper-strong: #e3eaf5;
 	--surface: #f8fbff;
 	--surface-raised: #ffffff;
-	--accent: #ce7a4a;
-	--accent-soft: #dc9a73;
+	--accent: #4f7fc9;
+	--accent-soft: #7ea8e8;
 	--green: #2f7f70;
 	--line: #aec0d8;
 	--line-strong: #7d97bb;
 	--bg-radial-a: #cfdbeb;
-	--bg-radial-b: #e8d2bf;
+	--bg-radial-b: #d8e3f7;
 	--bg-base-a: #ecf2f9;
 	--bg-base-b: #f7faff;
 	--bg-base-c: #edf3fa;
 	--shadow-soft: rgba(52, 72, 102, 0.2);
-	--shadow-thin: rgba(66, 86, 116, 0.13);
-	--theme-pill: color-mix(in oklab, var(--paper) 74%, #f4eadf);
-	--theme-pill-border: color-mix(in oklab, var(--accent) 52%, #9c5a34);
-	--theme-pill-text: color-mix(in oklab, var(--ink) 72%, #8f5837);
 	--grain-opacity: 0.16;
 	--grain-dot-a: rgba(49, 70, 97, 0.12);
-	--grain-dot-b: rgba(190, 128, 92, 0.1);
+	--grain-dot-b: rgba(103, 142, 202, 0.1);
 	--status-chip-signed-bg: #e5f6f2;
 	--status-chip-signed-border: #76b8a8;
 	--status-chip-signed-text: #165348;
-	--status-chip-unsigned-bg: #fdf0ea;
-	--status-chip-unsigned-border: #dca788;
-	--status-chip-unsigned-text: #7a3f24;
+	--status-chip-unsigned-bg: #eef4ff;
+	--status-chip-unsigned-border: #89a9dd;
+	--status-chip-unsigned-text: #2f4f85;
 	--btn-primary-bg-start: #5e86b3;
 	--btn-primary-bg-end: #4f739d;
 	--btn-primary-border: #3f638f;
@@ -59,30 +55,26 @@
 	--paper-strong: #1c2a41;
 	--surface: #1a283d;
 	--surface-raised: #223149;
-	--accent: #c78a63;
-	--accent-soft: #d2a183;
+	--accent: #6f98d6;
+	--accent-soft: #94b7ee;
 	--green: #74c0b2;
 	--line: #435978;
 	--line-strong: #6180a6;
 	--bg-radial-a: #2a3a54;
-	--bg-radial-b: #4c3c4f;
+	--bg-radial-b: #2d4166;
 	--bg-base-a: #101827;
 	--bg-base-b: #162235;
 	--bg-base-c: #1a2a40;
 	--shadow-soft: rgba(4, 8, 18, 0.5);
-	--shadow-thin: rgba(8, 12, 22, 0.34);
-	--theme-pill: color-mix(in oklab, var(--surface) 78%, #28364b);
-	--theme-pill-border: color-mix(in oklab, var(--accent) 56%, #9e6b4b);
-	--theme-pill-text: color-mix(in oklab, var(--ink) 90%, #efd4c4);
 	--grain-opacity: 0.2;
 	--grain-dot-a: rgba(186, 203, 231, 0.14);
-	--grain-dot-b: rgba(188, 141, 111, 0.12);
+	--grain-dot-b: rgba(138, 170, 226, 0.12);
 	--status-chip-signed-bg: #163532;
 	--status-chip-signed-border: #35756b;
 	--status-chip-signed-text: #9de0d3;
-	--status-chip-unsigned-bg: #3d2925;
-	--status-chip-unsigned-border: #8d6151;
-	--status-chip-unsigned-text: #f0c9b8;
+	--status-chip-unsigned-bg: #1f2f4b;
+	--status-chip-unsigned-border: #4f74ad;
+	--status-chip-unsigned-text: #c9ddff;
 	--btn-primary-bg-start: #6f91b4;
 	--btn-primary-bg-end: #5d7ea5;
 	--btn-primary-border: #7ea0c4;
@@ -129,6 +121,16 @@ body {
 	background-attachment: fixed, fixed, fixed;
 	min-height: 100lvh;
 	font-family: var(--font-noto-sans), "Microsoft YaHei", sans-serif;
+}
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+	body {
+		background-size:
+			100% 58vh,
+			100% 56vh,
+			100% 100%;
+		background-attachment: scroll, scroll, scroll;
+	}
 }
 
 html,
@@ -190,13 +192,6 @@ html {
 		0 14px 26px var(--shadow-soft);
 }
 
-.tag {
-	border: 1px dashed var(--theme-pill-border);
-	color: var(--theme-pill-text);
-	background: var(--theme-pill);
-	box-shadow: 0 6px 14px color-mix(in oklab, var(--shadow-soft) 38%, transparent);
-}
-
 .focus-ring {
 	outline: none;
 	color: var(--ink);
@@ -207,7 +202,7 @@ html {
 
 .focus-ring:focus-visible {
 	box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-soft) 35%, transparent);
-	border-color: color-mix(in oklab, var(--accent) 56%, #9e4a26);
+	border-color: color-mix(in oklab, var(--accent) 72%, var(--line-strong));
 }
 
 .input-surface {
@@ -217,7 +212,7 @@ html {
 
 [data-theme="dark"] .input-surface {
 	color-scheme: dark;
-	background: color-mix(in oklab, var(--surface) 84%, #20364f);
+	background: color-mix(in oklab, var(--surface) 84%, var(--paper-strong));
 }
 
 input[type="date"].input-surface {
@@ -255,30 +250,6 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	font-variant-numeric: tabular-nums;
 }
 
-.theme-toggle {
-	border: 1px solid var(--line-strong);
-	background: color-mix(in oklab, var(--surface) 92%, transparent);
-	color: var(--ink);
-	transition:
-		background-color 0.2s ease,
-		border-color 0.2s ease,
-		box-shadow 0.2s ease;
-}
-
-.theme-toggle:hover {
-	background: color-mix(in oklab, var(--surface-raised) 92%, transparent);
-}
-
-.theme-toggle.active {
-	border-color: color-mix(in oklab, var(--accent) 55%, var(--line-strong));
-	background: color-mix(in oklab, var(--accent) 22%, var(--surface-raised));
-}
-
-.theme-toggle:focus-visible {
-	outline: none;
-	box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-soft) 35%, transparent);
-}
-
 .theme-toggle-compact {
 	border: 2px solid color-mix(in oklab, var(--line-strong) 58%, var(--line));
 	background: linear-gradient(
@@ -313,10 +284,10 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 .theme-toggle-compact:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-soft) 30%, transparent);
+	border-color: color-mix(in oklab, var(--accent) 72%, var(--line-strong));
 }
 
-.repo-link-main,
-.repo-link-stars {
+.repo-link-main {
 	border: 2px solid color-mix(in oklab, var(--line-strong) 52%, var(--line));
 	color: var(--ink);
 	text-decoration: none;
@@ -330,6 +301,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 		0 6px 0 color-mix(in oklab, var(--line) 26%, transparent);
 }
 
+
 .repo-link-main {
 	background: linear-gradient(
 		160deg,
@@ -338,17 +310,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	);
 }
 
-.repo-link-stars {
-	background: linear-gradient(
-		160deg,
-		color-mix(in oklab, var(--status-info-bg) 68%, var(--surface-raised)) 0%,
-		color-mix(in oklab, var(--surface) 86%, var(--paper-strong)) 100%
-	);
-	color: color-mix(in oklab, var(--status-info-text) 72%, var(--ink));
-}
-
-.repo-link-main:hover,
-.repo-link-stars:hover {
+.repo-link-main:hover {
 	border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
 	transform: translateY(-1px);
 	box-shadow:
@@ -357,8 +319,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 		0 12px 20px color-mix(in oklab, var(--shadow-soft) 48%, transparent);
 }
 
-.repo-link-main:focus-visible,
-.repo-link-stars:focus-visible {
+.repo-link-main:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-soft) 35%, transparent);
 }
@@ -443,12 +404,6 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 		box-shadow 0.2s ease;
 }
 
-.selection-label {
-	border-color: color-mix(in oklab, var(--accent) 40%, var(--line-strong)) !important;
-	background: color-mix(in oklab, var(--status-chip-signed-bg) 40%, var(--surface-raised));
-	color: color-mix(in oklab, var(--status-chip-signed-text) 88%, var(--ink)) !important;
-}
-
 .status-chip {
 	font-weight: 700;
 	letter-spacing: 0.01em;
@@ -491,13 +446,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	border-width: 1px;
 }
 
-.status-banner--neutral {
-	border-style: dashed;
-	border-color: var(--status-neutral-border);
-	background: var(--status-neutral-bg);
-	color: var(--status-neutral-text);
-}
-
+.status-banner--neutral,
 .status-banner--loading {
 	border-style: dashed;
 	border-color: var(--status-neutral-border);
@@ -547,7 +496,6 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	}
 
 	.focus-ring,
-	.theme-toggle,
 	.theme-toggle-compact,
 	.relay-highlight,
 	.action-btn {
