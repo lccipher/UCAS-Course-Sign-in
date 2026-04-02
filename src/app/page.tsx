@@ -34,7 +34,16 @@ type ThemeMode = "system" | "light" | "dark";
 type StatusKind = "idle" | "loading" | "success" | "error" | "info";
 type FeatureMode = "query" | "manual";
 
+type RepoStarsCache = {
+	stars: number;
+	updatedAt: number;
+};
+
+const REPO_STARS_CACHE_KEY = "ucas-repo-stars-cache-v1";
+const REPO_STARS_CACHE_TTL_MS = 1000 * 60 * 30;
+
 const ACTION_STATUS_DEFAULT_TEXT = "生成签到码后，可在此查看下载、复制和点击签到的状态信息";
+const SIGN_BASE_URL = "https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action";
 
 function getSavedThemeMode(): ThemeMode {
 	if (typeof window === "undefined") {
@@ -75,7 +84,7 @@ function formatRange(start: string, end: string): string {
 }
 
 function buildSignInUrl(uuid: string, expiresAt: number): string {
-	return `http://124.16.75.106:8081/app/course/stu_scan_sign.action?timeTableId=${encodeURIComponent(uuid)}&timestamp=${expiresAt}`;
+	return `${SIGN_BASE_URL}?timeTableId=${encodeURIComponent(uuid)}&timestamp=${expiresAt}`;
 }
 
 function buildManualSignInUrl(identifier: string, expiresAt: number): string | null {
@@ -85,12 +94,12 @@ function buildManualSignInUrl(identifier: string, expiresAt: number): string | n
 	}
 
 	if (/^\d+$/.test(raw)) {
-		return `https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action?courseSchedId=${encodeURIComponent(raw)}&timestamp=${expiresAt}`;
+		return `${SIGN_BASE_URL}?courseSchedId=${encodeURIComponent(raw)}&timestamp=${expiresAt}`;
 	}
 
 	const compact = raw.replace(/-/g, "");
 	if (/^[0-9a-fA-F]{32}$/.test(compact)) {
-		return `https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action?timeTableId=${encodeURIComponent(compact.toUpperCase())}&timestamp=${expiresAt}`;
+		return `${SIGN_BASE_URL}?timeTableId=${encodeURIComponent(compact.toUpperCase())}&timestamp=${expiresAt}`;
 	}
 
 	return null;
@@ -125,6 +134,39 @@ function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): st
 
 function formatDateTime(timestamp: number): string {
 	return new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
+}
+
+function readRepoStarsCache(): RepoStarsCache | null {
+	if (typeof window === "undefined") {
+		return null;
+	}
+
+	try {
+		const raw = window.localStorage.getItem(REPO_STARS_CACHE_KEY);
+		if (!raw) {
+			return null;
+		}
+		const parsed = JSON.parse(raw) as RepoStarsCache;
+		if (typeof parsed?.stars !== "number" || typeof parsed?.updatedAt !== "number") {
+			return null;
+		}
+		return parsed;
+	} catch {
+		return null;
+	}
+}
+
+function writeRepoStarsCache(stars: number): void {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	try {
+		const payload: RepoStarsCache = { stars, updatedAt: Date.now() };
+		window.localStorage.setItem(REPO_STARS_CACHE_KEY, JSON.stringify(payload));
+	} catch {
+		// Ignore cache write failures.
+	}
 }
 
 export default function Home() {
@@ -215,6 +257,16 @@ export default function Home() {
 
 	useEffect(() => {
 		const controller = new AbortController();
+		const cached = readRepoStarsCache();
+
+		if (cached) {
+			setRepoStars(cached.stars);
+			if (Date.now() - cached.updatedAt < REPO_STARS_CACHE_TTL_MS) {
+				return () => {
+					controller.abort();
+				};
+			}
+		}
 
 		const loadRepoStars = async () => {
 			try {
@@ -232,6 +284,7 @@ export default function Home() {
 				const data = (await res.json()) as { stargazers_count?: number };
 				if (typeof data.stargazers_count === "number") {
 					setRepoStars(data.stargazers_count);
+					writeRepoStarsCache(data.stargazers_count);
 				}
 			} catch {
 				// Ignore network/rate-limit failures and keep the plain repo link.
@@ -516,7 +569,7 @@ export default function Home() {
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
 			<main className="mx-auto w-full max-w-6xl">
 				<header className="mb-7">
-					<a href="#main-content" className="sr-only focus-not-sr-only skip-link">
+					<a href="#main-content" className="sr-only focus:not-sr-only skip-link">
 						跳到主要内容
 					</a>
 					<div className="mt-4">
@@ -701,7 +754,6 @@ export default function Home() {
 											return (
 												<article
 													key={`${course.id}-${course.uuid}`}
-													aria-current={selected ? "true" : undefined}
 													className={`course-item clay-card rounded-xl border p-4 ${
 														selected
 															? "course-item--selected border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
@@ -778,7 +830,6 @@ export default function Home() {
 													return (
 														<tr
 															key={`${course.id}-${course.uuid}`}
-															aria-current={selected ? "true" : undefined}
 															className={`course-row ${
 																selected
 																	? "bg-[color:var(--paper-strong)]"
@@ -908,7 +959,7 @@ export default function Home() {
 										className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
 										name="manualCourseIdentifier"
 										value={manualIdentifier}
-										onChange={(e) => setManualIdentifier(e.target.value.trim())}
+										onChange={(e) => setManualIdentifier(e.target.value)}
 										placeholder="1203879 / EFD843630CE444769921BDDCD05298C7"
 										autoComplete="off"
 										spellCheck={false}
