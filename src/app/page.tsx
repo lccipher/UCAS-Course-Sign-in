@@ -534,7 +534,7 @@ export default function Home() {
 								href={repoUrl}
 								target="_blank"
 								rel="noreferrer"
-								className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-l-xl rounded-r-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
+								className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
 								aria-label="查看 GitHub 仓库"
 								title="查看 GitHub 仓库"
 							>
