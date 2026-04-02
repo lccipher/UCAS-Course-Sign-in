@@ -897,7 +897,7 @@ export default function Home() {
 							<div className="space-y-1">
 								<h2 className="font-[var(--font-serif)] text-2xl font-semibold">手动生成签到码</h2>
 								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									课程ID为9位纯数字，UUID为32位十六进制字符串
+									课程ID为7位纯数字，UUID为32位十六进制字符串
 								</p>
 							</div>
 
