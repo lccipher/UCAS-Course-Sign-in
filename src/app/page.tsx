@@ -144,10 +144,6 @@ function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): st
 	return "unknown";
 }
 
-function formatDateTime(timestamp: number): string {
-	return new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
-}
-
 function extractClockTime(value: string): string | null {
 	if (!value) {
 		return null;
@@ -199,9 +195,7 @@ function writeRepoStarsCache(stars: number): void {
 	try {
 		const payload: RepoStarsCache = { stars, updatedAt: Date.now() };
 		window.localStorage.setItem(REPO_STARS_CACHE_KEY, JSON.stringify(payload));
-	} catch {
-		// Ignore cache write failures.
-	}
+	} catch {}
 }
 
 export default function Home() {
@@ -367,9 +361,7 @@ export default function Home() {
 					setRepoStars(data.stargazers_count);
 					writeRepoStarsCache(data.stargazers_count);
 				}
-			} catch {
-				// Ignore network/rate-limit failures and keep the plain repo link.
-			}
+			} catch {}
 		};
 
 		void loadRepoStars();
@@ -437,6 +429,7 @@ export default function Home() {
 	const queryAttempted = statusKind !== "idle";
 	const hasKeyword = keyword.trim().length > 0;
 	const emptyHelpText = hasKeyword ? "可先清空筛选词，再查看全部课程" : "检查日期是否为上课日，并确认学号与密码正确";
+	const isCourseSelected = (uuid: string): boolean => selectedUuid === uuid;
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -919,7 +912,7 @@ export default function Home() {
 										</div>
 									) : (
 										filteredCourses.map((course) => {
-											const selected = selectedUuid === course.uuid;
+											const selected = isCourseSelected(course.uuid);
 											return (
 												<article
 													key={`${course.id}-${course.uuid}`}
@@ -958,7 +951,7 @@ export default function Home() {
 														onClick={() => onPick(course.uuid)}
 														className="action-btn action-btn--secondary mt-3 w-full min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold"
 													>
-														{selected ? "已选中，重新生成签到码" : "生成签到码"}
+														{selected ? "已选中" : "生成签到码"}
 													</button>
 												</article>
 											);
@@ -995,7 +988,7 @@ export default function Home() {
 												</tr>
 											) : (
 												filteredCourses.map((course) => {
-													const selected = selectedUuid === course.uuid;
+													const selected = isCourseSelected(course.uuid);
 													return (
 														<tr
 															key={`${course.id}-${course.uuid}`}
@@ -1032,7 +1025,7 @@ export default function Home() {
 																	onClick={() => onPick(course.uuid)}
 																	className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
 																>
-																	{selected ? "已选中，重新生成签到码" : "生成签到码"}
+																	{selected ? "已选中" : "生成签到码"}
 																</button>
 															</td>
 														</tr>
