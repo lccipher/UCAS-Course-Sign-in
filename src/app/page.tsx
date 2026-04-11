@@ -626,7 +626,7 @@ export default function Home() {
 
 	const onDirectSign = async () => {
 		if (directSignBlockedByTime) {
-			updateActionStatus("error", "当前时间不在上课时间");
+			updateActionStatus("error", "当前不在签到时间（开课前30分钟至下课前可签到）");
 			return;
 		}
 
@@ -728,15 +728,12 @@ export default function Home() {
 	);
 
 	const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid || directSignBlockedByTime;
-	// const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid;
 
 	const directSignButtonText = directSignLoading
 		? "签到中..."
 		: directSignBlockedByTime
 			? "不在签到时间"
 			: "点击签到";
-
-	// const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid;
 
 	return (
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
@@ -751,8 +748,7 @@ export default function Home() {
 						</h1>
 					</div>
 					<p className="mt-4 text-sm leading-7 sm:text-base">
-						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID，生成签到码。每个签到码
-						30 分钟后失效。
+						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID生成签到码。每个签到码每5秒自动刷新，下载二维码10秒有效。
 					</p>
 					<div className="utility-toolbar mt-4 flex flex-wrap items-center gap-2.5">
 						<div className="repo-link-group inline-flex min-h-11 items-stretch">
@@ -1065,7 +1061,7 @@ export default function Home() {
 											/>
 											<div className="space-y-3 text-sm numeric-tabular">
 												<p>
-													有效期倒计时：
+													下次刷新倒计时：
 													<span className="font-semibold">{expireCountdown}s</span>
 												</p>
 												<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
@@ -1177,7 +1173,7 @@ export default function Home() {
 									/>
 									<div className="space-y-3 text-sm numeric-tabular">
 										<p>
-											有效期倒计时：
+											下次刷新倒计时：
 											<span className="font-semibold">{expireCountdown}s</span>
 										</p>
 										<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
