@@ -41,9 +41,21 @@ type RepoStarsCache = {
 
 const REPO_STARS_CACHE_KEY = "ucas-repo-stars-cache-v1";
 const REPO_STARS_CACHE_TTL_MS = 1000 * 60 * 30;
+const AUTO_QR_TTL_MS = 5 * 1000;
+const DOWNLOAD_QR_TTL_MS = 10 * 1000;
 
 const ACTION_STATUS_DEFAULT_TEXT = "生成签到码后，可在此查看下载、复制和点击签到的状态信息";
 const SIGN_BASE_URL = "https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action";
+
+type QrSource =
+	| {
+			mode: "query";
+			uuid: string;
+	  }
+	| {
+			mode: "manual";
+			identifier: string;
+	  };
 
 function getSavedThemeMode(): ThemeMode {
 	if (typeof window === "undefined") {
@@ -132,8 +144,27 @@ function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): st
 	return "unknown";
 }
 
-function formatDateTime(timestamp: number): string {
-	return new Date(timestamp).toLocaleString("zh-CN", { hour12: false });
+function extractClockTime(value: string): string | null {
+	if (!value) {
+		return null;
+	}
+	const timeMatch = value.match(/(\d{2}:\d{2}(?::\d{2})?)$/);
+	if (!timeMatch) {
+		return null;
+	}
+	return timeMatch[1].length === 5 ? `${timeMatch[1]}:00` : timeMatch[1];
+}
+
+function buildDateTimeFromClock(dateInput: string, clockTime: string | null): Date | null {
+	if (!clockTime) {
+		return null;
+	}
+
+	const parsed = new Date(`${dateInput}T${clockTime}`);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
+	return parsed;
 }
 
 function readRepoStarsCache(): RepoStarsCache | null {
@@ -164,9 +195,7 @@ function writeRepoStarsCache(stars: number): void {
 	try {
 		const payload: RepoStarsCache = { stars, updatedAt: Date.now() };
 		window.localStorage.setItem(REPO_STARS_CACHE_KEY, JSON.stringify(payload));
-	} catch {
-		// Ignore cache write failures.
-	}
+	} catch {}
 }
 
 export default function Home() {
@@ -192,7 +221,9 @@ export default function Home() {
 	const [signUrl, setSignUrl] = useState("");
 	const [qrDataUrl, setQrDataUrl] = useState("");
 	const [expireAt, setExpireAt] = useState(0);
+	const [expireCountdown, setExpireCountdown] = useState(0);
 	const [qrRelayActive, setQrRelayActive] = useState(false);
+	const [qrSource, setQrSource] = useState<QrSource | null>(null);
 	const qrSectionRef = useRef<HTMLDivElement | null>(null);
 
 	const updateStatus = (kind: StatusKind, message: string) => {
@@ -210,9 +241,53 @@ export default function Home() {
 		setSignUrl("");
 		setQrDataUrl("");
 		setExpireAt(0);
+		setExpireCountdown(0);
 		setQrRelayActive(false);
+		setQrSource(null);
 		setActionStatusKind("idle");
 		setActionStatusText(ACTION_STATUS_DEFAULT_TEXT);
+	};
+
+	const getPayloadFromSource = (source: QrSource, deadline: number): string | null => {
+		if (source.mode === "query") {
+			return buildSignInUrl(source.uuid, deadline);
+		}
+		return buildManualSignInUrl(source.identifier, deadline);
+	};
+
+	const generateQrDataUrlFromPayload = async (payload: string): Promise<string> => {
+		const { default: QRCode } = await import("qrcode");
+		return QRCode.toDataURL(payload, {
+			width: 320,
+			margin: 1,
+			errorCorrectionLevel: "M",
+		});
+	};
+
+	const regenerateAutoQr = async (source: QrSource): Promise<boolean> => {
+		const currentTimestamp = Date.now();
+		const payload = getPayloadFromSource(source, currentTimestamp);
+		if (!payload) {
+			setQrDataUrl("");
+			setSignUrl("");
+			setExpireAt(0);
+			setExpireCountdown(0);
+			return false;
+		}
+
+		try {
+			const imageUrl = await generateQrDataUrlFromPayload(payload);
+			setSignUrl(payload);
+			setExpireAt(currentTimestamp + AUTO_QR_TTL_MS);
+			setQrDataUrl(imageUrl);
+			return true;
+		} catch {
+			setQrDataUrl("");
+			setSignUrl("");
+			setExpireAt(0);
+			setExpireCountdown(0);
+			return false;
+		}
 	};
 
 	const getStatusBannerClassName = (kind: StatusKind): string => {
@@ -286,9 +361,7 @@ export default function Home() {
 					setRepoStars(data.stargazers_count);
 					writeRepoStarsCache(data.stargazers_count);
 				}
-			} catch {
-				// Ignore network/rate-limit failures and keep the plain repo link.
-			}
+			} catch {}
 		};
 
 		void loadRepoStars();
@@ -297,6 +370,47 @@ export default function Home() {
 			controller.abort();
 		};
 	}, []);
+
+	useEffect(() => {
+		if (!expireAt) {
+			setExpireCountdown(0);
+			return;
+		}
+
+		const updateCountdown = () => {
+			const remainMs = expireAt - Date.now();
+			setExpireCountdown(Math.max(0, Math.ceil(remainMs / 1000)));
+		};
+
+		updateCountdown();
+		const timer = window.setInterval(updateCountdown, 250);
+
+		return () => {
+			window.clearInterval(timer);
+		};
+	}, [expireAt]);
+
+	useEffect(() => {
+		if (!qrSource || !expireAt) {
+			return;
+		}
+
+		const delay = Math.max(0, expireAt - Date.now());
+		const timer = window.setTimeout(async () => {
+			const ok = await regenerateAutoQr(qrSource);
+			if (!ok) {
+				if (qrSource.mode === "query") {
+					updateActionStatus("error", "签到码自动刷新失败，请重新选择课程");
+				} else {
+					updateStatus("error", "签到码自动刷新失败，请重新生成");
+				}
+			}
+		}, delay);
+
+		return () => {
+			window.clearTimeout(timer);
+		};
+	}, [qrSource, expireAt]);
 
 	const deferredKeyword = useDeferredValue(keyword);
 
@@ -315,6 +429,7 @@ export default function Home() {
 	const queryAttempted = statusKind !== "idle";
 	const hasKeyword = keyword.trim().length > 0;
 	const emptyHelpText = hasKeyword ? "可先清空筛选词，再查看全部课程" : "检查日期是否为上课日，并确认学号与密码正确";
+	const isCourseSelected = (uuid: string): boolean => selectedUuid === uuid;
 
 	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -323,6 +438,8 @@ export default function Home() {
 		setSignUrl("");
 		setQrDataUrl("");
 		setExpireAt(0);
+		setExpireCountdown(0);
+		setQrSource(null);
 		updateStatus("loading", "正在查询课程…");
 
 		try {
@@ -358,27 +475,16 @@ export default function Home() {
 
 	const onPick = async (uuid: string) => {
 		setSelectedUuid(uuid);
-		const deadline = Date.now() + 30 * 60 * 1000;
-		const payload = buildSignInUrl(uuid, deadline);
+		const source: QrSource = { mode: "query", uuid };
+		setQrSource(source);
 
-		setSignUrl(payload);
-		setExpireAt(deadline);
-
-		try {
-			const { default: QRCode } = await import("qrcode");
-			const imageUrl = await QRCode.toDataURL(payload, {
-				width: 320,
-				margin: 1,
-				errorCorrectionLevel: "M",
-			});
-			setQrDataUrl(imageUrl);
-		} catch {
-			setQrDataUrl("");
+		const ok = await regenerateAutoQr(source);
+		if (!ok) {
 			updateActionStatus("error", "签到码生成失败，请重新选择课程");
 			return;
 		}
 
-		updateActionStatus("success", "签到码已生成，可点击签到或下载二维码");
+		updateActionStatus("success", "签到码已生成（5秒后自动刷新）");
 
 		if (window.matchMedia("(max-width: 1023px)").matches) {
 			setQrRelayActive(true);
@@ -392,8 +498,8 @@ export default function Home() {
 
 	const onManualGenerate = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		const deadline = Date.now() + 30 * 60 * 1000;
-		const payload = buildManualSignInUrl(manualIdentifier, deadline);
+		const source: QrSource = { mode: "manual", identifier: manualIdentifier };
+		const payload = getPayloadFromSource(source, Date.now());
 
 		if (!payload) {
 			updateStatus("error", "请输入纯数字课程ID或32位UUID");
@@ -402,26 +508,21 @@ export default function Home() {
 
 		setManualLoading(true);
 		setSelectedUuid("");
-		setSignUrl(payload);
-		setExpireAt(deadline);
+		setQrSource(source);
 
+		let ok = false;
 		try {
-			const { default: QRCode } = await import("qrcode");
-			const imageUrl = await QRCode.toDataURL(payload, {
-				width: 320,
-				margin: 1,
-				errorCorrectionLevel: "M",
-			});
-			setQrDataUrl(imageUrl);
-		} catch {
-			setQrDataUrl("");
-			updateStatus("error", "签到码生成失败，请检查课程ID或UUID后重试");
-			return;
+			ok = await regenerateAutoQr(source);
 		} finally {
 			setManualLoading(false);
 		}
 
-		updateStatus("success", "签到码已生成");
+		if (!ok) {
+			updateStatus("error", "签到码生成失败，请检查课程ID或UUID后重试");
+			return;
+		}
+
+		updateStatus("success", "签到码已生成（5秒后自动刷新）");
 
 		if (window.matchMedia("(max-width: 1023px)").matches) {
 			setQrRelayActive(true);
@@ -432,21 +533,41 @@ export default function Home() {
 		}
 	};
 
-	const onDownloadQr = () => {
-		if (!qrDataUrl) {
+	const onDownloadQr = async () => {
+		if (!qrSource) {
 			return;
 		}
 
-		const link = document.createElement("a");
-		link.href = qrDataUrl;
-		const safeIdentifier = getSignIdentifierForFilename(signUrl, selectedUuid);
-		link.download = `ucas-signin-${safeIdentifier}-${expireAt}.png`;
-		link.click();
-		if (featureMode === "query") {
-			updateActionStatus("success", "二维码已开始下载");
+		const deadline = Date.now() + DOWNLOAD_QR_TTL_MS;
+		const payload = getPayloadFromSource(qrSource, deadline);
+		if (!payload) {
+			if (featureMode === "query") {
+				updateActionStatus("error", "下载二维码失败，请重新生成签到码");
+				return;
+			}
+			updateStatus("error", "下载二维码失败，请重新生成签到码");
 			return;
 		}
-		updateStatus("success", "二维码已开始下载");
+
+		try {
+			const imageUrl = await generateQrDataUrlFromPayload(payload);
+			const link = document.createElement("a");
+			link.href = imageUrl;
+			const safeIdentifier = getSignIdentifierForFilename(payload, selectedUuid);
+			link.download = `ucas-signin-${safeIdentifier}-${deadline}.png`;
+			link.click();
+			if (featureMode === "query") {
+				updateActionStatus("success", "二维码已开始下载（10秒有效）");
+				return;
+			}
+			updateStatus("success", "二维码已开始下载（10秒有效）");
+		} catch {
+			if (featureMode === "query") {
+				updateActionStatus("error", "下载二维码失败，请稍后重试");
+				return;
+			}
+			updateStatus("error", "下载二维码失败，请稍后重试");
+		}
 	};
 
 	const onCopySignUrl = async () => {
@@ -497,6 +618,11 @@ export default function Home() {
 	};
 
 	const onDirectSign = async () => {
+		if (directSignBlockedByTime) {
+			updateActionStatus("error", "当前不在签到时间（开课前30分钟至下课前可签到）");
+			return;
+		}
+
 		const timeTableId =
 			selectedUuid ||
 			(() => {
@@ -563,7 +689,44 @@ export default function Home() {
 		setThemeMode(resolvedTheme === "dark" ? "light" : "dark");
 	};
 
-	const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid;
+	const selectedCourse = useMemo(() => {
+		if (!selectedUuid) {
+			return null;
+		}
+		return courses.find((item) => item.uuid === selectedUuid) ?? null;
+	}, [courses, selectedUuid]);
+
+	const now = Date.now();
+
+	const signWindow = useMemo(() => {
+		if (!selectedCourse) {
+			return null;
+		}
+
+		const classBegin = buildDateTimeFromClock(date, extractClockTime(selectedCourse.classBeginTime));
+		const classEnd = buildDateTimeFromClock(date, extractClockTime(selectedCourse.classEndTime));
+		if (!classBegin || !classEnd) {
+			return null;
+		}
+
+		const openAt = new Date(classBegin.getTime() - 30 * 60 * 1000);
+		return {
+			openAt: openAt.getTime(),
+			closeAt: classEnd.getTime(),
+		};
+	}, [selectedCourse, date]);
+
+	const directSignBlockedByTime = Boolean(
+		selectedCourse && (!signWindow || now < signWindow.openAt || now > signWindow.closeAt),
+	);
+
+	const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid || directSignBlockedByTime;
+
+	const directSignButtonText = directSignLoading
+		? "签到中..."
+		: directSignBlockedByTime
+			? "不在签到时间"
+			: "点击签到";
 
 	return (
 		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
@@ -578,8 +741,7 @@ export default function Home() {
 						</h1>
 					</div>
 					<p className="mt-4 text-sm leading-7 sm:text-base">
-						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID，生成签到码。每个签到码
-						30 分钟后失效。
+						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID生成签到码。每个签到码每5秒自动刷新，下载二维码10秒有效。
 					</p>
 					<div className="utility-toolbar mt-4 flex flex-wrap items-center gap-2.5">
 						<div className="repo-link-group inline-flex min-h-11 items-stretch">
@@ -750,7 +912,7 @@ export default function Home() {
 										</div>
 									) : (
 										filteredCourses.map((course) => {
-											const selected = selectedUuid === course.uuid;
+											const selected = isCourseSelected(course.uuid);
 											return (
 												<article
 													key={`${course.id}-${course.uuid}`}
@@ -789,7 +951,7 @@ export default function Home() {
 														onClick={() => onPick(course.uuid)}
 														className="action-btn action-btn--secondary mt-3 w-full min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold"
 													>
-														{selected ? "已选中，重新生成签到码" : "生成签到码"}
+														{selected ? "已选中" : "生成签到码"}
 													</button>
 												</article>
 											);
@@ -826,7 +988,7 @@ export default function Home() {
 												</tr>
 											) : (
 												filteredCourses.map((course) => {
-													const selected = selectedUuid === course.uuid;
+													const selected = isCourseSelected(course.uuid);
 													return (
 														<tr
 															key={`${course.id}-${course.uuid}`}
@@ -863,7 +1025,7 @@ export default function Home() {
 																	onClick={() => onPick(course.uuid)}
 																	className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
 																>
-																	{selected ? "已选中，重新生成签到码" : "生成签到码"}
+																	{selected ? "已选中" : "生成签到码"}
 																</button>
 															</td>
 														</tr>
@@ -892,8 +1054,8 @@ export default function Home() {
 											/>
 											<div className="space-y-3 text-sm numeric-tabular">
 												<p>
-													有效期截止：
-													<span className="font-semibold">{formatDateTime(expireAt)}</span>
+													下次刷新倒计时：
+													<span className="font-semibold">{expireCountdown}s</span>
 												</p>
 												<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
 													{signUrl}
@@ -905,7 +1067,7 @@ export default function Home() {
 														disabled={directSignDisabled}
 														className="action-btn action-btn--primary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
 													>
-														{directSignLoading ? "签到中..." : "点击签到"}
+														{directSignButtonText}
 													</button>
 													<button
 														type="button"
@@ -1004,8 +1166,8 @@ export default function Home() {
 									/>
 									<div className="space-y-3 text-sm numeric-tabular">
 										<p>
-											有效期截止：
-											<span className="font-semibold">{formatDateTime(expireAt)}</span>
+											下次刷新倒计时：
+											<span className="font-semibold">{expireCountdown}s</span>
 										</p>
 										<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
 											{signUrl}

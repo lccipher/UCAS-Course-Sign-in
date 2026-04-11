@@ -23,7 +23,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
 	title: "UCAS Course Sign in",
-	description: "输入学号与密码，查询课程并生成30分钟有效签到码",
+	description: "输入学号与密码，查询课程并生成实时刷新签到码（每5秒刷新，下载码10秒有效）",
 	icons: {
 		icon: "/ucas.svg",
 		shortcut: "/ucas.svg",

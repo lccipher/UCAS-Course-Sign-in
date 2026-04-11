@@ -32,6 +32,7 @@
 	--btn-primary-bg-end: #4f739d;
 	--btn-primary-border: #3f638f;
 	--btn-primary-text: #f6fbff;
+	--mix-highlight: #ffffff;
 	--btn-primary-shadow: rgba(56, 87, 123, 0.32);
 	--status-neutral-border: var(--line);
 	--status-neutral-bg: var(--surface);
@@ -79,6 +80,7 @@
 	--btn-primary-bg-end: #5d7ea5;
 	--btn-primary-border: #7ea0c4;
 	--btn-primary-text: #f2f8ff;
+	--mix-highlight: #d9e8ff;
 	--btn-primary-shadow: rgba(8, 18, 34, 0.54);
 	--status-neutral-border: var(--line);
 	--status-neutral-bg: var(--surface);
@@ -169,11 +171,11 @@ html {
 	border: 2px solid color-mix(in oklab, var(--line-strong) 56%, var(--line));
 	background: linear-gradient(
 		162deg,
-		color-mix(in oklab, var(--surface-raised) 92%, #ffffff) 0%,
+		color-mix(in oklab, var(--surface-raised) 92%, var(--mix-highlight)) 0%,
 		var(--surface) 100%
 	);
 	box-shadow:
-		0 2px 0 color-mix(in oklab, var(--surface-raised) 88%, #ffffff),
+		0 2px 0 color-mix(in oklab, var(--surface-raised) 88%, var(--mix-highlight)),
 		0 10px 0 color-mix(in oklab, var(--line) 26%, transparent),
 		0 18px 34px var(--shadow-soft);
 }
@@ -183,11 +185,11 @@ html {
 	border: 2px solid color-mix(in oklab, var(--line-strong) 54%, var(--line));
 	background: linear-gradient(
 		165deg,
-		color-mix(in oklab, var(--surface-raised) 94%, #ffffff) 0%,
+		color-mix(in oklab, var(--surface-raised) 94%, var(--mix-highlight)) 0%,
 		var(--surface) 100%
 	);
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 86%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 86%, var(--mix-highlight)),
 		0 8px 0 color-mix(in oklab, var(--line) 24%, transparent),
 		0 14px 26px var(--shadow-soft);
 }
@@ -254,13 +256,13 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	border: 2px solid color-mix(in oklab, var(--line-strong) 58%, var(--line));
 	background: linear-gradient(
 		155deg,
-		color-mix(in oklab, var(--surface-raised) 94%, #ffffff) 0%,
+		color-mix(in oklab, var(--surface-raised) 94%, var(--mix-highlight)) 0%,
 		color-mix(in oklab, var(--paper-strong) 78%, var(--surface)) 100%
 	);
 	color: color-mix(in oklab, var(--ink) 88%, var(--muted));
 	opacity: 1;
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, var(--mix-highlight)),
 		0 7px 0 color-mix(in oklab, var(--line) 28%, transparent),
 		0 12px 22px color-mix(in oklab, var(--shadow-soft) 42%, transparent);
 	transition:
@@ -275,7 +277,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
 	background: linear-gradient(
 		155deg,
-		color-mix(in oklab, var(--surface-raised) 97%, #ffffff) 0%,
+		color-mix(in oklab, var(--surface-raised) 97%, var(--mix-highlight)) 0%,
 		color-mix(in oklab, var(--paper-strong) 84%, var(--surface)) 100%
 	);
 	transform: translateY(-1px);
@@ -297,15 +299,14 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 		box-shadow 0.2s ease,
 		transform 0.16s ease;
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, var(--mix-highlight)),
 		0 6px 0 color-mix(in oklab, var(--line) 26%, transparent);
 }
-
 
 .repo-link-main {
 	background: linear-gradient(
 		160deg,
-		color-mix(in oklab, var(--surface-raised) 96%, #ffffff) 0%,
+		color-mix(in oklab, var(--surface-raised) 96%, var(--mix-highlight)) 0%,
 		color-mix(in oklab, var(--surface) 80%, var(--paper)) 100%
 	);
 }
@@ -314,7 +315,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
 	transform: translateY(-1px);
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, var(--mix-highlight)),
 		0 8px 0 color-mix(in oklab, var(--line-strong) 30%, transparent),
 		0 12px 20px color-mix(in oklab, var(--shadow-soft) 48%, transparent);
 }
@@ -330,7 +331,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 	-webkit-tap-highlight-color: transparent;
 	border-width: 2px;
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, var(--mix-highlight)),
 		0 5px 0 color-mix(in oklab, var(--line) 26%, transparent);
 	transition:
 		background-color 0.2s ease,
@@ -341,7 +342,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 
 .action-btn:hover {
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 84%, var(--mix-highlight)),
 		0 7px 0 color-mix(in oklab, var(--line-strong) 32%, transparent),
 		0 12px 20px color-mix(in oklab, var(--shadow-soft) 48%, transparent);
 	transform: translateY(-1px);
@@ -350,7 +351,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 .action-btn:active {
 	transform: translateY(2px);
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 80%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 80%, var(--mix-highlight)),
 		0 2px 0 color-mix(in oklab, var(--line-strong) 30%, transparent),
 		0 8px 14px color-mix(in oklab, var(--shadow-soft) 44%, transparent);
 }
@@ -375,10 +376,10 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 }
 
 .action-btn--primary:hover {
-	border-color: color-mix(in oklab, var(--btn-primary-border) 78%, #ffffff);
+	border-color: color-mix(in oklab, var(--btn-primary-border) 78%, var(--mix-highlight));
 	background: linear-gradient(
 		160deg,
-		color-mix(in oklab, var(--btn-primary-bg-start) 84%, #ffffff) 0%,
+		color-mix(in oklab, var(--btn-primary-bg-start) 84%, var(--mix-highlight)) 0%,
 		var(--btn-primary-bg-end) 100%
 	);
 }
@@ -393,7 +394,7 @@ input[type="date"].input-surface::-webkit-calendar-picker-indicator {
 .course-item--selected {
 	border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
 	box-shadow:
-		0 1px 0 color-mix(in oklab, var(--surface-raised) 86%, #ffffff),
+		0 1px 0 color-mix(in oklab, var(--surface-raised) 86%, var(--mix-highlight)),
 		0 9px 0 color-mix(in oklab, var(--accent-soft) 24%, transparent),
 		0 16px 28px color-mix(in oklab, var(--shadow-soft) 64%, transparent);
 }
