@@ -39,7 +39,7 @@ const RESPONSE_HEADERS = {
 	"Referrer-Policy": "no-referrer",
 	"X-Frame-Options": "DENY",
 };
-const REQUEST_TIMEOUT_MS = 4000;
+const REQUEST_TIMEOUT_MS = 10000;
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
