@@ -51,6 +51,7 @@ type QrSource =
 	| {
 			mode: "query";
 			uuid: string;
+			courseId: string;
 	  }
 	| {
 			mode: "manual";
@@ -95,8 +96,8 @@ function formatRange(start: string, end: string): string {
 	return `${toTimeOnly(start)} ~ ${toTimeOnly(end)}`;
 }
 
-function buildSignInUrl(uuid: string, expiresAt: number): string {
-	return `${SIGN_BASE_URL}?timeTableId=${encodeURIComponent(uuid)}&timestamp=${expiresAt}`;
+function buildSignInUrl(courseId: string, expiresAt: number): string {
+	return `${SIGN_BASE_URL}?courseSchedId=${encodeURIComponent(courseId)}&timestamp=${expiresAt}`;
 }
 
 function buildManualSignInUrl(identifier: string, expiresAt: number): string | null {
@@ -118,30 +119,26 @@ function buildManualSignInUrl(identifier: string, expiresAt: number): string | n
 }
 
 function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): string {
-	if (selectedUuid) {
-		return selectedUuid;
-	}
-
 	if (!signUrl) {
-		return "unknown";
+		return selectedUuid || "unknown";
 	}
 
 	try {
 		const url = new URL(signUrl);
+		const courseSchedId = url.searchParams.get("courseSchedId");
+		if (courseSchedId) {
+			return courseSchedId;
+		}
+
 		const timeTableId = url.searchParams.get("timeTableId");
 		if (timeTableId) {
 			return timeTableId;
 		}
 
-		const courseSchedId = url.searchParams.get("courseSchedId");
-		if (courseSchedId) {
-			return courseSchedId;
-		}
+		return selectedUuid || "unknown";
 	} catch {
-		return "unknown";
+		return selectedUuid || "unknown";
 	}
-
-	return "unknown";
 }
 
 function extractClockTime(value: string): string | null {
@@ -250,7 +247,7 @@ export default function Home() {
 
 	const getPayloadFromSource = (source: QrSource, deadline: number): string | null => {
 		if (source.mode === "query") {
-			return buildSignInUrl(source.uuid, deadline);
+			return buildSignInUrl(source.courseId, deadline);
 		}
 		return buildManualSignInUrl(source.identifier, deadline);
 	};
@@ -473,9 +470,9 @@ export default function Home() {
 		}
 	};
 
-	const onPick = async (uuid: string) => {
+	const onPick = async (uuid: string, courseId: string) => {
 		setSelectedUuid(uuid);
-		const source: QrSource = { mode: "query", uuid };
+		const source: QrSource = { mode: "query", uuid, courseId };
 		setQrSource(source);
 
 		const ok = await regenerateAutoQr(source);
@@ -623,18 +620,18 @@ export default function Home() {
 			return;
 		}
 
-		const timeTableId =
-			selectedUuid ||
+		const courseSchedId =
+			selectedCourse?.id ||
 			(() => {
 				try {
 					const url = new URL(signUrl);
-					return url.searchParams.get("timeTableId") ?? "";
+					return url.searchParams.get("courseSchedId") ?? url.searchParams.get("timeTableId") ?? "";
 				} catch {
 					return "";
 				}
 			})();
 
-		if (!timeTableId) {
+		if (!courseSchedId) {
 			updateActionStatus("error", "请先在查询课程模式选择课程并生成签到码");
 			return;
 		}
@@ -657,7 +654,7 @@ export default function Home() {
 				body: JSON.stringify({
 					username: safeUsername,
 					password,
-					timeTableId,
+					courseSchedId,
 				}),
 			});
 
@@ -948,7 +945,7 @@ export default function Home() {
 													</dl>
 													<button
 														type="button"
-														onClick={() => onPick(course.uuid)}
+														onClick={() => onPick(course.uuid, course.id)}
 														className="action-btn action-btn--secondary mt-3 w-full min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold"
 													>
 														{selected ? "已选中" : "生成签到码"}
@@ -1022,7 +1019,7 @@ export default function Home() {
 															<td className="px-3 py-3">
 																<button
 																	type="button"
-																	onClick={() => onPick(course.uuid)}
+																	onClick={() => onPick(course.uuid, course.id)}
 																	className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
 																>
 																	{selected ? "已选中" : "生成签到码"}
