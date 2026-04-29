@@ -184,11 +184,11 @@ function isCredentialInputInvalid(username: string, password: string): boolean {
 }
 
 function normalizeCourseSchedId(raw: string): string | null {
-	const compact = raw.trim().replace(/-/g, "");
-	if (!/^[0-9a-fA-F]{32}$/.test(compact)) {
+	const compact = raw.trim();
+	if (!/^\d{7}$/.test(compact)) {
 		return null;
 	}
-	return compact.toUpperCase();
+	return compact;
 }
 
 function buildLoginBody(username: string, password: string): string {
