@@ -51,6 +51,7 @@ type QrSource =
 	| {
 			mode: "query";
 			uuid: string;
+			courseId: string;
 	  }
 	| {
 			mode: "manual";
@@ -95,8 +96,8 @@ function formatRange(start: string, end: string): string {
 	return `${toTimeOnly(start)} ~ ${toTimeOnly(end)}`;
 }
 
-function buildSignInUrl(uuid: string, expiresAt: number): string {
-	return `${SIGN_BASE_URL}?timeTableId=${encodeURIComponent(uuid)}&timestamp=${expiresAt}`;
+function buildSignInUrl(courseId: string, expiresAt: number): string {
+	return `${SIGN_BASE_URL}?courseSchedId=${encodeURIComponent(courseId)}&timestamp=${expiresAt}`;
 }
 
 function buildManualSignInUrl(identifier: string, expiresAt: number): string | null {
@@ -118,30 +119,26 @@ function buildManualSignInUrl(identifier: string, expiresAt: number): string | n
 }
 
 function getSignIdentifierForFilename(signUrl: string, selectedUuid: string): string {
-	if (selectedUuid) {
-		return selectedUuid;
-	}
-
 	if (!signUrl) {
-		return "unknown";
+		return selectedUuid || "unknown";
 	}
 
 	try {
 		const url = new URL(signUrl);
+		const courseSchedId = url.searchParams.get("courseSchedId");
+		if (courseSchedId) {
+			return courseSchedId;
+		}
+
 		const timeTableId = url.searchParams.get("timeTableId");
 		if (timeTableId) {
 			return timeTableId;
 		}
 
-		const courseSchedId = url.searchParams.get("courseSchedId");
-		if (courseSchedId) {
-			return courseSchedId;
-		}
+		return selectedUuid || "unknown";
 	} catch {
-		return "unknown";
+		return selectedUuid || "unknown";
 	}
-
-	return "unknown";
 }
 
 function extractClockTime(value: string): string | null {
@@ -224,6 +221,9 @@ export default function Home() {
 	const [expireCountdown, setExpireCountdown] = useState(0);
 	const [qrRelayActive, setQrRelayActive] = useState(false);
 	const [qrSource, setQrSource] = useState<QrSource | null>(null);
+	const [updateAvailable, setUpdateAvailable] = useState(false);
+	const [updateMessage, setUpdateMessage] = useState("");
+	const siteVersionRef = useRef<string | null>(null);
 	const qrSectionRef = useRef<HTMLDivElement | null>(null);
 
 	const updateStatus = (kind: StatusKind, message: string) => {
@@ -235,6 +235,83 @@ export default function Home() {
 		setActionStatusKind(kind);
 		setActionStatusText(message);
 	};
+
+	const timeOffsetRef = useRef<number | null>(null);
+
+	const getServerTimeOffset = async (): Promise<number> => {
+		if (timeOffsetRef.current !== null) {
+			return timeOffsetRef.current;
+		}
+
+		try {
+			const start = Date.now();
+			const res = await fetch("/api/course-uuid/timestamp", {
+				cache: "no-store",
+			});
+			if (!res.ok) {
+				throw new Error();
+			}
+			const data = await res.json();
+			if (data.success && typeof data.timestamp === "number") {
+				const latency = Math.max(0, Date.now() - start);
+				const serverTime = data.timestamp + Math.floor(latency / 2);
+				const offset = serverTime - Date.now();
+				timeOffsetRef.current = offset;
+				return offset;
+			}
+		} catch {}
+
+		timeOffsetRef.current = 0;
+		return 0;
+	};
+
+	useEffect(() => {
+		void getServerTimeOffset();
+
+		let isChecking = false;
+		const checkVersion = async () => {
+			if (isChecking) return;
+			isChecking = true;
+			try {
+				const res = await fetch("/api/version", { cache: "no-store" });
+				if (!res.ok) return;
+				const data = (await res.json()) as { version?: string; message?: string };
+				const latestVersion = data.version;
+
+				if (latestVersion && latestVersion !== "local-dev") {
+					if (siteVersionRef.current === null) {
+						siteVersionRef.current = latestVersion;
+					} else if (siteVersionRef.current !== latestVersion) {
+						setUpdateMessage(data.message || "页面代码已经更新，立即刷新体验最新功能。");
+						setUpdateAvailable(true);
+					}
+				}
+			} catch {
+				// Ignore errors silently
+			} finally {
+				isChecking = false;
+			}
+		};
+
+		// Check shortly after load to avoid competing with main requests
+		const initialTimer = window.setTimeout(() => void checkVersion(), 3000);
+
+		// Check when user returns to the tab
+		const onVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				void checkVersion();
+			}
+		};
+
+		const intervalTimer = window.setInterval(() => void checkVersion(), 5 * 60 * 1000);
+		document.addEventListener("visibilitychange", onVisibilityChange);
+
+		return () => {
+			window.clearTimeout(initialTimer);
+			window.clearInterval(intervalTimer);
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+		};
+	}, []);
 
 	const resetGeneratedSignState = () => {
 		setSelectedUuid("");
@@ -250,7 +327,7 @@ export default function Home() {
 
 	const getPayloadFromSource = (source: QrSource, deadline: number): string | null => {
 		if (source.mode === "query") {
-			return buildSignInUrl(source.uuid, deadline);
+			return buildSignInUrl(source.courseId, deadline);
 		}
 		return buildManualSignInUrl(source.identifier, deadline);
 	};
@@ -265,7 +342,8 @@ export default function Home() {
 	};
 
 	const regenerateAutoQr = async (source: QrSource): Promise<boolean> => {
-		const currentTimestamp = Date.now();
+		const offset = await getServerTimeOffset();
+		const currentTimestamp = Date.now() + offset;
 		const payload = getPayloadFromSource(source, currentTimestamp);
 		if (!payload) {
 			setQrDataUrl("");
@@ -378,7 +456,7 @@ export default function Home() {
 		}
 
 		const updateCountdown = () => {
-			const remainMs = expireAt - Date.now();
+			const remainMs = expireAt - (Date.now() + (timeOffsetRef.current || 0));
 			setExpireCountdown(Math.max(0, Math.ceil(remainMs / 1000)));
 		};
 
@@ -395,7 +473,7 @@ export default function Home() {
 			return;
 		}
 
-		const delay = Math.max(0, expireAt - Date.now());
+		const delay = Math.max(0, expireAt - (Date.now() + (timeOffsetRef.current || 0)));
 		const timer = window.setTimeout(async () => {
 			const ok = await regenerateAutoQr(qrSource);
 			if (!ok) {
@@ -473,9 +551,9 @@ export default function Home() {
 		}
 	};
 
-	const onPick = async (uuid: string) => {
+	const onPick = async (uuid: string, courseId: string) => {
 		setSelectedUuid(uuid);
-		const source: QrSource = { mode: "query", uuid };
+		const source: QrSource = { mode: "query", uuid, courseId };
 		setQrSource(source);
 
 		const ok = await regenerateAutoQr(source);
@@ -499,7 +577,7 @@ export default function Home() {
 	const onManualGenerate = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const source: QrSource = { mode: "manual", identifier: manualIdentifier };
-		const payload = getPayloadFromSource(source, Date.now());
+		const payload = getPayloadFromSource(source, Date.now() + (timeOffsetRef.current || 0));
 
 		if (!payload) {
 			updateStatus("error", "请输入纯数字课程ID或32位UUID");
@@ -538,7 +616,8 @@ export default function Home() {
 			return;
 		}
 
-		const deadline = Date.now() + DOWNLOAD_QR_TTL_MS;
+		const offset = await getServerTimeOffset();
+		const deadline = Date.now() + offset + DOWNLOAD_QR_TTL_MS;
 		const payload = getPayloadFromSource(qrSource, deadline);
 		if (!payload) {
 			if (featureMode === "query") {
@@ -623,18 +702,18 @@ export default function Home() {
 			return;
 		}
 
-		const timeTableId =
-			selectedUuid ||
+		const courseSchedId =
+			selectedCourse?.id ||
 			(() => {
 				try {
 					const url = new URL(signUrl);
-					return url.searchParams.get("timeTableId") ?? "";
+					return url.searchParams.get("courseSchedId") ?? url.searchParams.get("timeTableId") ?? "";
 				} catch {
 					return "";
 				}
 			})();
 
-		if (!timeTableId) {
+		if (!courseSchedId) {
 			updateActionStatus("error", "请先在查询课程模式选择课程并生成签到码");
 			return;
 		}
@@ -657,14 +736,14 @@ export default function Home() {
 				body: JSON.stringify({
 					username: safeUsername,
 					password,
-					timeTableId,
+					courseSchedId,
 				}),
 			});
 
 			const data = (await res.json()) as DirectSignResponse;
 
 			if (!res.ok || !data.success) {
-				updateActionStatus("error", data.message ?? "签到失败，请稍后重试");
+				updateActionStatus("error", data.message ?? "签到失败，请稍后重试或手动扫码");
 				return;
 			}
 
@@ -696,7 +775,7 @@ export default function Home() {
 		return courses.find((item) => item.uuid === selectedUuid) ?? null;
 	}, [courses, selectedUuid]);
 
-	const now = Date.now();
+	const now = Date.now() + (timeOffsetRef.current || 0);
 
 	const signWindow = useMemo(() => {
 		if (!selectedCourse) {
@@ -729,474 +808,533 @@ export default function Home() {
 			: "点击签到";
 
 	return (
-		<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
-			<main className="mx-auto w-full max-w-6xl">
-				<header className="mb-7">
-					<a href="#main-content" className="sr-only focus:not-sr-only skip-link">
-						跳到主要内容
-					</a>
-					<div className="mt-4">
-						<h1 className="max-w-4xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
-							UCAS Course Sign in
-						</h1>
-					</div>
-					<p className="mt-4 text-sm leading-7 sm:text-base">
-						查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID生成签到码。每个签到码每5秒自动刷新，下载二维码10秒有效。
-					</p>
-					<div className="utility-toolbar mt-4 flex flex-wrap items-center gap-2.5">
-						<div className="repo-link-group inline-flex min-h-11 items-stretch">
-							<a
-								href={repoUrl}
-								target="_blank"
-								rel="noreferrer"
-								className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
-								aria-label="查看 GitHub 仓库"
-								title="查看 GitHub 仓库"
+		<>
+			{updateAvailable && (
+				<div
+					className="fixed bottom-4 left-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 animate-in slide-in-from-bottom-5 fade-in duration-300 sm:w-auto md:bottom-6 md:left-auto md:right-6 md:translate-x-0"
+					role="alert"
+					aria-live="polite"
+				>
+					<div className="flex w-full flex-col gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-2xl backdrop-blur-xl sm:w-[320px] md:p-5">
+						<div className="flex items-start gap-4">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--surface-raised)]">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className="h-5 w-5 text-amber-500"
+								>
+									<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+								</svg>
+							</div>
+							<div className="flex-1">
+								<h3 className="font-semibold text-sm">发现新版本</h3>
+								<p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">{updateMessage}</p>
+							</div>
+							<button
+								onClick={() => setUpdateAvailable(false)}
+								className="text-[color:var(--muted)] transition-colors hover:text-current cursor-pointer"
+								aria-label="关闭提示"
 							>
-								<svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
-									<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82a7.55 7.55 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+								<svg viewBox="0 0 20 20" className="h-5 w-5 fill-current">
+									<path d="M5.293 5.293a1 1 0 0 1 1.414 0L10 8.586l3.293-3.293a1 1 0 1 1 1.414 1.414L11.414 10l3.293 3.293a1 1 0 0 1-1.414 1.414L10 11.414l-3.293 3.293a1 1 0 0 1-1.414-1.414L8.586 10 5.293 6.707a1 1 0 0 1 0-1.414z" />
 								</svg>
-								<span>GitHub</span>
-								<svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
-									<path d="m10 1.5 2.42 4.9 5.4.78-3.9 3.8.92 5.37L10 13.9l-4.84 2.55.92-5.37-3.9-3.8 5.4-.78L10 1.5Z" />
-								</svg>
-								<span className="numeric-tabular">
-									{repoStars !== null ? repoStars.toLocaleString() : "--"}
-								</span>
-							</a>
+							</button>
 						</div>
 						<button
-							type="button"
-							onClick={onToggleTheme}
-							className="theme-toggle-compact inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
-							aria-pressed={resolvedTheme === "dark"}
-							aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
-							title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+							onClick={() => window.location.reload()}
+							className="action-btn action-btn--primary w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-transform active:scale-[0.98] cursor-pointer"
 						>
-							<svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-								{resolvedTheme === "dark" ? (
-									<path d="M12 3a1 1 0 0 1 1 1v1.2a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm0 14.8a1 1 0 0 1 1 1V20a1 1 0 1 1-2 0v-1.2a1 1 0 0 1 1-1Zm8-5.8a1 1 0 0 1 1 1 1 1 0 0 1-1 1h-1.2a1 1 0 1 1 0-2H20ZM5.2 12a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2h1.2Zm11.2-5.66a1 1 0 0 1 1.42 0l.85.85a1 1 0 1 1-1.41 1.42l-.86-.85a1 1 0 0 1 0-1.42Zm-10.24 0a1 1 0 0 1 1.42 1.42l-.86.85A1 1 0 0 1 5.33 7.2l.85-.85Zm11.39 10.24.85.85a1 1 0 1 1-1.41 1.42l-.86-.85a1 1 0 1 1 1.42-1.42Zm-10.24 0a1 1 0 0 1 0 1.42l-.86.85a1 1 0 1 1-1.41-1.42l.85-.85a1 1 0 0 1 1.42 0ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z" />
-								) : (
-									<path d="M21.75 15.08a.75.75 0 0 0-.95-.46 8.23 8.23 0 0 1-2.62.43 8.24 8.24 0 0 1-8.23-8.23c0-.9.14-1.77.43-2.62a.75.75 0 0 0-.95-.95A9.75 9.75 0 1 0 21.3 16.03a.75.75 0 0 0 .45-.95Z" />
-								)}
-							</svg>
-							<span>{resolvedTheme === "dark" ? "切换亮色" : "切换暗色"}</span>
+							立即刷新
 						</button>
 					</div>
-					<div className="mt-4 flex flex-wrap gap-2">
-						<button
-							type="button"
-							onClick={() => {
-								resetGeneratedSignState();
-								setFeatureMode("query");
-								updateStatus("idle", "输入学号、密码和日期，开始查询课程");
-							}}
-							className={`action-btn min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold sm:text-sm ${
-								featureMode === "query" ? "action-btn--primary" : "action-btn--secondary"
-							}`}
-						>
-							查询课程模式
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								resetGeneratedSignState();
-								setFeatureMode("manual");
-								updateStatus("idle", "输入课程ID或UUID，直接生成签到码");
-							}}
-							className={`action-btn min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold sm:text-sm ${
-								featureMode === "manual" ? "action-btn--primary" : "action-btn--secondary"
-							}`}
-						>
-							手动生成模式
-						</button>
-					</div>
-				</header>
-
-				{featureMode === "query" ? (
-					<section
-						id="main-content"
-						className="grid items-start gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
-					>
-						<form onSubmit={onSubmit} className="panel rounded-2xl p-5 sm:p-6">
-							<div className="space-y-1">
-								<h2 className="font-[var(--font-serif)] text-2xl font-semibold">查询课程</h2>
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									学号和密码仅用于本次查询，不会存储
-								</p>
-							</div>
-
-							<div className="mt-6 space-y-4">
-								<label className="block text-sm font-semibold">
-									学号
-									<input
-										className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
-										name="studentId"
-										value={username}
-										onChange={(e) => setUsername(e.target.value)}
-										autoComplete="username"
-										spellCheck={false}
-										required
-									/>
-								</label>
-
-								<label className="block text-sm font-semibold">
-									密码
-									<input
-										type="password"
-										className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
-										name="password"
-										value={password}
-										onChange={(e) => setPassword(e.target.value)}
-										autoComplete="current-password"
-										required
-									/>
-								</label>
-
-								<label className="block text-sm font-semibold">
-									日期
-									<input
-										type="date"
-										className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
-										name="courseDate"
-										value={date}
-										onChange={(e) => setDate(e.target.value)}
-										required
-									/>
-								</label>
-
-								<button
-									disabled={loading}
-									className="action-btn action-btn--primary w-full rounded-xl px-4 py-3 text-sm font-semibold"
-									type="submit"
+				</div>
+			)}
+			<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
+				<main className="mx-auto w-full max-w-6xl">
+					<header className="mb-7">
+						<a href="#main-content" className="sr-only focus:not-sr-only skip-link">
+							跳到主要内容
+						</a>
+						<div className="mt-4">
+							<h1 className="max-w-4xl font-[var(--font-serif)] text-3xl leading-tight font-semibold sm:text-5xl">
+								UCAS Course Sign in
+							</h1>
+						</div>
+						<p className="mt-4 text-sm leading-7 sm:text-base">
+							查询课程，选择课程后可直接签到或下载签到码。也可以手动输入课程ID或UUID生成签到码。每个签到码每5秒自动刷新，下载二维码10秒有效。
+						</p>
+						<div className="utility-toolbar mt-4 flex flex-wrap items-center gap-2.5">
+							<div className="repo-link-group inline-flex min-h-11 items-stretch">
+								<a
+									href={repoUrl}
+									target="_blank"
+									rel="noreferrer"
+									className="repo-link-main inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
+									aria-label="查看 GitHub 仓库"
+									title="查看 GitHub 仓库"
 								>
-									{loading ? "查询中..." : "查询课程"}
-								</button>
+									<svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4 fill-current">
+										<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82a7.55 7.55 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+									</svg>
+									<span>GitHub</span>
+									<svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
+										<path d="m10 1.5 2.42 4.9 5.4.78-3.9 3.8.92 5.37L10 13.9l-4.84 2.55.92-5.37-3.9-3.8 5.4-.78L10 1.5Z" />
+									</svg>
+									<span className="numeric-tabular">
+										{repoStars !== null ? repoStars.toLocaleString() : "--"}
+									</span>
+								</a>
 							</div>
-
-							<p
-								role="status"
-								aria-live={statusKind === "error" ? "assertive" : "polite"}
-								aria-atomic="true"
-								className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${getStatusBannerClassName(statusKind)}`}
+							<button
+								type="button"
+								onClick={onToggleTheme}
+								className="theme-toggle-compact inline-flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold sm:text-sm"
+								aria-pressed={resolvedTheme === "dark"}
+								aria-label={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+								title={resolvedTheme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
 							>
-								{statusText}
-							</p>
-						</form>
-
-						<div className="panel rounded-2xl p-5 sm:p-6">
-							<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-								<h2 className="font-[var(--font-serif)] text-2xl font-semibold">选择课程</h2>
-								{hasCourses ? (
-									<input
-										className="focus-ring input-surface min-h-11 w-full rounded-xl border border-[color:var(--line)] px-4 py-2 text-sm md:w-auto md:min-w-[230px]"
-										name="courseFilter"
-										aria-label="筛选课程"
-										value={keyword}
-										onChange={(e) => setKeyword(e.target.value)}
-										placeholder="输入课程名或教师姓名进行筛选"
-									/>
-								) : null}
-							</div>
-
-							<div className="mt-4 space-y-4">
-								<div className="space-y-3 lg:hidden">
-									{filteredCourses.length === 0 ? (
-										<div className="clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-4 py-8 text-center text-sm text-[color:var(--green)]">
-											<p>暂无课程数据</p>
-											{queryAttempted ? (
-												<p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
-													{emptyHelpText}
-												</p>
-											) : null}
-										</div>
+								<svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+									{resolvedTheme === "dark" ? (
+										<path d="M12 3a1 1 0 0 1 1 1v1.2a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm0 14.8a1 1 0 0 1 1 1V20a1 1 0 1 1-2 0v-1.2a1 1 0 0 1 1-1Zm8-5.8a1 1 0 0 1 1 1 1 1 0 0 1-1 1h-1.2a1 1 0 1 1 0-2H20ZM5.2 12a1 1 0 1 1 0 2H4a1 1 0 1 1 0-2h1.2Zm11.2-5.66a1 1 0 0 1 1.42 0l.85.85a1 1 0 1 1-1.41 1.42l-.86-.85a1 1 0 0 1 0-1.42Zm-10.24 0a1 1 0 0 1 1.42 1.42l-.86.85A1 1 0 0 1 5.33 7.2l.85-.85Zm11.39 10.24.85.85a1 1 0 1 1-1.41 1.42l-.86-.85a1 1 0 1 1 1.42-1.42Zm-10.24 0a1 1 0 0 1 0 1.42l-.86.85a1 1 0 1 1-1.41-1.42l.85-.85a1 1 0 0 1 1.42 0ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z" />
 									) : (
-										filteredCourses.map((course) => {
-											const selected = isCourseSelected(course.uuid);
-											return (
-												<article
-													key={`${course.id}-${course.uuid}`}
-													className={`course-item clay-card rounded-xl border p-4 ${
-														selected
-															? "course-item--selected border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
-															: "border-[color:var(--line)] bg-[color:var(--surface-raised)]"
-													}`}
-												>
-													<div className="flex items-start justify-between gap-3">
-														<div className="min-w-0">
-															<h3 className="text-sm font-semibold leading-6 break-words">
-																{course.courseName || "--"}
-															</h3>
-														</div>
-														<span
-															className={`status-chip rounded-md border px-2 py-1 text-xs ${
-																course.signStatus === "1"
-																	? "status-chip--signed"
-																	: "status-chip--unsigned"
-															}`}
-														>
-															{course.signStatus === "1" ? "已签到" : "未签到"}
-														</span>
-													</div>
-													<dl className="mt-2 grid grid-cols-[40px_1fr] gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
-														<dt className="font-medium">教师</dt>
-														<dd className="break-words">{course.teacherName || "--"}</dd>
-														<dt className="font-medium">时段</dt>
-														<dd className="break-words">
-															{formatRange(course.classBeginTime, course.classEndTime)}
-														</dd>
-													</dl>
-													<button
-														type="button"
-														onClick={() => onPick(course.uuid)}
-														className="action-btn action-btn--secondary mt-3 w-full min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold"
-													>
-														{selected ? "已选中" : "生成签到码"}
-													</button>
-												</article>
-											);
-										})
+										<path d="M21.75 15.08a.75.75 0 0 0-.95-.46 8.23 8.23 0 0 1-2.62.43 8.24 8.24 0 0 1-8.23-8.23c0-.9.14-1.77.43-2.62a.75.75 0 0 0-.95-.95A9.75 9.75 0 1 0 21.3 16.03a.75.75 0 0 0 .45-.95Z" />
 									)}
+								</svg>
+								<span>{resolvedTheme === "dark" ? "切换亮色" : "切换暗色"}</span>
+							</button>
+						</div>
+						<div className="mt-4 flex flex-wrap gap-2">
+							<button
+								type="button"
+								onClick={() => {
+									resetGeneratedSignState();
+									setFeatureMode("query");
+									updateStatus("idle", "输入学号、密码和日期，开始查询课程");
+								}}
+								className={`action-btn min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold sm:text-sm ${
+									featureMode === "query" ? "action-btn--primary" : "action-btn--secondary"
+								}`}
+							>
+								查询课程模式
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									resetGeneratedSignState();
+									setFeatureMode("manual");
+									updateStatus("idle", "输入课程ID或UUID，直接生成签到码");
+								}}
+								className={`action-btn min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold sm:text-sm ${
+									featureMode === "manual" ? "action-btn--primary" : "action-btn--secondary"
+								}`}
+							>
+								手动生成模式
+							</button>
+						</div>
+					</header>
+
+					{featureMode === "query" ? (
+						<section
+							id="main-content"
+							className="grid items-start gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
+						>
+							<form onSubmit={onSubmit} className="panel rounded-2xl p-5 sm:p-6">
+								<div className="space-y-1">
+									<h2 className="font-[var(--font-serif)] text-2xl font-semibold">查询课程</h2>
+									<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
+										学号和密码仅用于本次查询，不会存储
+									</p>
 								</div>
 
-								<div className="render-skip clay-card hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
-									<table className="min-w-full text-sm">
-										<caption className="sr-only">课程查询结果和签到码生成操作</caption>
-										<thead className="bg-[color:var(--paper-strong)] text-left text-[color:var(--muted)]">
-											<tr>
-												<th className="px-3 py-3">课程</th>
-												<th className="px-3 py-3">教师</th>
-												<th className="px-3 py-3">时段</th>
-												<th className="px-3 py-3">状态</th>
-												<th className="px-3 py-3">操作</th>
-											</tr>
-										</thead>
-										<tbody>
-											{filteredCourses.length === 0 ? (
-												<tr>
-													<td
-														colSpan={5}
-														className="px-3 py-8 text-center text-[color:var(--green)]"
+								<div className="mt-6 space-y-4">
+									<label className="block text-sm font-semibold">
+										学号
+										<input
+											className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
+											name="studentId"
+											value={username}
+											onChange={(e) => setUsername(e.target.value)}
+											autoComplete="username"
+											spellCheck={false}
+											required
+										/>
+									</label>
+
+									<label className="block text-sm font-semibold">
+										密码
+										<input
+											type="password"
+											className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
+											name="password"
+											value={password}
+											onChange={(e) => setPassword(e.target.value)}
+											autoComplete="current-password"
+											required
+										/>
+									</label>
+
+									<label className="block text-sm font-semibold">
+										日期
+										<input
+											type="date"
+											className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
+											name="courseDate"
+											value={date}
+											onChange={(e) => setDate(e.target.value)}
+											required
+										/>
+									</label>
+
+									<button
+										disabled={loading}
+										className="action-btn action-btn--primary w-full rounded-xl px-4 py-3 text-sm font-semibold"
+										type="submit"
+									>
+										{loading ? "查询中..." : "查询课程"}
+									</button>
+								</div>
+
+								<p
+									role="status"
+									aria-live={statusKind === "error" ? "assertive" : "polite"}
+									aria-atomic="true"
+									className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${getStatusBannerClassName(statusKind)}`}
+								>
+									{statusText}
+								</p>
+							</form>
+
+							<div className="panel rounded-2xl p-5 sm:p-6">
+								<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+									<h2 className="font-[var(--font-serif)] text-2xl font-semibold">选择课程</h2>
+									{hasCourses ? (
+										<input
+											className="focus-ring input-surface min-h-11 w-full rounded-xl border border-[color:var(--line)] px-4 py-2 text-sm md:w-auto md:min-w-[230px]"
+											name="courseFilter"
+											aria-label="筛选课程"
+											value={keyword}
+											onChange={(e) => setKeyword(e.target.value)}
+											placeholder="输入课程名或教师姓名进行筛选"
+										/>
+									) : null}
+								</div>
+
+								<div className="mt-4 space-y-4">
+									<div className="space-y-3 lg:hidden">
+										{filteredCourses.length === 0 ? (
+											<div className="clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] px-4 py-8 text-center text-sm text-[color:var(--green)]">
+												<p>暂无课程数据</p>
+												{queryAttempted ? (
+													<p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
+														{emptyHelpText}
+													</p>
+												) : null}
+											</div>
+										) : (
+											filteredCourses.map((course) => {
+												const selected = isCourseSelected(course.uuid);
+												return (
+													<article
+														key={`${course.id}-${course.uuid}`}
+														className={`course-item clay-card rounded-xl border p-4 ${
+															selected
+																? "course-item--selected border-[color:var(--line-strong)] bg-[color:var(--paper-strong)]"
+																: "border-[color:var(--line)] bg-[color:var(--surface-raised)]"
+														}`}
 													>
-														<p>暂无课程数据</p>
-														{queryAttempted ? (
-															<p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
-																{emptyHelpText}
-															</p>
-														) : null}
-													</td>
-												</tr>
-											) : (
-												filteredCourses.map((course) => {
-													const selected = isCourseSelected(course.uuid);
-													return (
-														<tr
-															key={`${course.id}-${course.uuid}`}
-															className={`course-row ${
-																selected
-																	? "bg-[color:var(--paper-strong)]"
-																	: "bg-[color:var(--surface-raised)]"
-															}`}
-														>
-															<td className="max-w-[170px] px-3 py-3 font-medium break-words">
-																{course.courseName || "--"}
-															</td>
-															<td className="px-3 py-3">{course.teacherName || "--"}</td>
-															<td className="max-w-[180px] px-3 py-3 break-words">
+														<div className="flex items-start justify-between gap-3">
+															<div className="min-w-0">
+																<h3 className="text-sm font-semibold leading-6 break-words">
+																	{course.courseName || "--"}
+																</h3>
+															</div>
+															<span
+																className={`status-chip rounded-md border px-2 py-1 text-xs ${
+																	course.signStatus === "1"
+																		? "status-chip--signed"
+																		: "status-chip--unsigned"
+																}`}
+															>
+																{course.signStatus === "1" ? "已签到" : "未签到"}
+															</span>
+														</div>
+														<dl className="mt-2 grid grid-cols-[40px_1fr] gap-x-2 gap-y-1 text-xs text-[color:var(--muted)]">
+															<dt className="font-medium">教师</dt>
+															<dd className="break-words">
+																{course.teacherName || "--"}
+															</dd>
+															<dt className="font-medium">时段</dt>
+															<dd className="break-words">
 																{formatRange(
 																	course.classBeginTime,
 																	course.classEndTime,
 																)}
-															</td>
-															<td className="px-3 py-3">
-																<span
-																	className={`status-chip rounded-md border px-2 py-1 text-xs ${
-																		course.signStatus === "1"
-																			? "status-chip--signed"
-																			: "status-chip--unsigned"
-																	}`}
-																>
-																	{course.signStatus === "1" ? "已签到" : "未签到"}
-																</span>
-															</td>
-															<td className="px-3 py-3">
-																<button
-																	type="button"
-																	onClick={() => onPick(course.uuid)}
-																	className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
-																>
-																	{selected ? "已选中" : "生成签到码"}
-																</button>
-															</td>
-														</tr>
-													);
-												})
-											)}
-										</tbody>
-									</table>
-								</div>
+															</dd>
+														</dl>
+														<button
+															type="button"
+															onClick={() => onPick(course.uuid, course.id)}
+															className="action-btn action-btn--secondary mt-3 w-full min-h-11 rounded-lg px-3.5 py-2 text-sm font-semibold"
+														>
+															{selected ? "已选中" : "生成签到码"}
+														</button>
+													</article>
+												);
+											})
+										)}
+									</div>
 
-								<div
-									ref={qrSectionRef}
-									className={`render-skip clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
-										qrRelayActive ? "relay-highlight" : ""
-									}`}
-								>
-									{hasQr ? (
-										<div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
-											<Image
-												src={qrDataUrl}
-												alt="签到码"
-												width={220}
-												height={220}
-												unoptimized
-												className="w-[220px] max-w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] p-2"
-											/>
-											<div className="space-y-3 text-sm numeric-tabular">
-												<p>
-													下次刷新倒计时：
-													<span className="font-semibold">{expireCountdown}s</span>
-												</p>
-												<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
-													{signUrl}
-												</p>
-												<div className="flex flex-wrap gap-2">
-													<button
-														type="button"
-														onClick={onDirectSign}
-														disabled={directSignDisabled}
-														className="action-btn action-btn--primary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+									<div className="render-skip clay-card hidden overflow-x-auto rounded-xl border border-[color:var(--line)] bg-[color:var(--surface-raised)] lg:block">
+										<table className="min-w-full text-sm">
+											<caption className="sr-only">课程查询结果和签到码生成操作</caption>
+											<thead className="bg-[color:var(--paper-strong)] text-left text-[color:var(--muted)]">
+												<tr>
+													<th className="px-3 py-3">课程</th>
+													<th className="px-3 py-3">教师</th>
+													<th className="px-3 py-3">时段</th>
+													<th className="px-3 py-3">状态</th>
+													<th className="px-3 py-3">操作</th>
+												</tr>
+											</thead>
+											<tbody>
+												{filteredCourses.length === 0 ? (
+													<tr>
+														<td
+															colSpan={5}
+															className="px-3 py-8 text-center text-[color:var(--green)]"
+														>
+															<p>暂无课程数据</p>
+															{queryAttempted ? (
+																<p className="mt-2 text-xs leading-5 text-[color:var(--muted)]">
+																	{emptyHelpText}
+																</p>
+															) : null}
+														</td>
+													</tr>
+												) : (
+													filteredCourses.map((course) => {
+														const selected = isCourseSelected(course.uuid);
+														return (
+															<tr
+																key={`${course.id}-${course.uuid}`}
+																className={`course-row ${
+																	selected
+																		? "bg-[color:var(--paper-strong)]"
+																		: "bg-[color:var(--surface-raised)]"
+																}`}
+															>
+																<td className="max-w-[170px] px-3 py-3 font-medium break-words">
+																	{course.courseName || "--"}
+																</td>
+																<td className="px-3 py-3">
+																	{course.teacherName || "--"}
+																</td>
+																<td className="max-w-[180px] px-3 py-3 break-words">
+																	{formatRange(
+																		course.classBeginTime,
+																		course.classEndTime,
+																	)}
+																</td>
+																<td className="px-3 py-3">
+																	<span
+																		className={`status-chip rounded-md border px-2 py-1 text-xs ${
+																			course.signStatus === "1"
+																				? "status-chip--signed"
+																				: "status-chip--unsigned"
+																		}`}
+																	>
+																		{course.signStatus === "1"
+																			? "已签到"
+																			: "未签到"}
+																	</span>
+																</td>
+																<td className="px-3 py-3">
+																	<button
+																		type="button"
+																		onClick={() => onPick(course.uuid, course.id)}
+																		className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
+																	>
+																		{selected ? "已选中" : "生成签到码"}
+																	</button>
+																</td>
+															</tr>
+														);
+													})
+												)}
+											</tbody>
+										</table>
+									</div>
+
+									<div
+										ref={qrSectionRef}
+										className={`render-skip clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
+											qrRelayActive ? "relay-highlight" : ""
+										}`}
+									>
+										{hasQr ? (
+											<div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
+												<Image
+													src={qrDataUrl}
+													alt="签到码"
+													width={220}
+													height={220}
+													unoptimized
+													className="w-[220px] max-w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] p-2"
+												/>
+												<div className="space-y-3 text-sm numeric-tabular">
+													<p>
+														刷新倒计时：
+														<span className="font-semibold">{expireCountdown}s</span>
+													</p>
+													<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
+														{signUrl}
+													</p>
+													<div className="flex flex-wrap gap-2">
+														<button
+															type="button"
+															onClick={onDirectSign}
+															disabled={directSignDisabled}
+															className="action-btn action-btn--primary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+														>
+															{directSignButtonText}
+														</button>
+														<button
+															type="button"
+															onClick={onDownloadQr}
+															className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
+														>
+															下载二维码
+														</button>
+														<button
+															type="button"
+															onClick={onCopySignUrl}
+															className="action-btn action-btn--quiet min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
+														>
+															复制签到链接
+														</button>
+													</div>
+													<p
+														role="status"
+														aria-live={
+															actionStatusKind === "error" ? "assertive" : "polite"
+														}
+														aria-atomic="true"
+														className={`status-banner rounded-xl px-3 py-2 text-xs leading-6 ${getStatusBannerClassName(actionStatusKind)}`}
 													>
-														{directSignButtonText}
-													</button>
-													<button
-														type="button"
-														onClick={onDownloadQr}
-														className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
-													>
-														下载二维码
-													</button>
-													<button
-														type="button"
-														onClick={onCopySignUrl}
-														className="action-btn action-btn--quiet min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
-													>
-														复制签到链接
-													</button>
+														{actionStatusText}
+													</p>
 												</div>
-												<p
-													role="status"
-													aria-live={actionStatusKind === "error" ? "assertive" : "polite"}
-													aria-atomic="true"
-													className={`status-banner rounded-xl px-3 py-2 text-xs leading-6 ${getStatusBannerClassName(actionStatusKind)}`}
-												>
-													{actionStatusText}
-												</p>
 											</div>
-										</div>
-									) : (
-										<p className="text-sm text-center text-[color:var(--green)]">暂无签到码数据</p>
-									)}
-								</div>
-							</div>
-						</div>
-					</section>
-				) : (
-					<section
-						id="main-content"
-						className="grid items-start gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
-					>
-						<form onSubmit={onManualGenerate} className="panel rounded-2xl p-5 sm:p-6">
-							<div className="space-y-1">
-								<h2 className="font-[var(--font-serif)] text-2xl font-semibold">手动生成签到码</h2>
-								<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
-									课程ID为7位纯数字，UUID为32位十六进制字符串
-								</p>
-							</div>
-
-							<div className="mt-6 space-y-4">
-								<label className="block text-sm font-semibold">
-									课程ID / UUID
-									<input
-										className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
-										name="manualCourseIdentifier"
-										value={manualIdentifier}
-										onChange={(e) => setManualIdentifier(e.target.value)}
-										placeholder="1203879 / EFD843630CE444769921BDDCD05298C7"
-										autoComplete="off"
-										spellCheck={false}
-										required
-									/>
-								</label>
-
-								<button
-									disabled={manualLoading}
-									className="action-btn action-btn--primary w-full rounded-xl px-4 py-3 text-sm font-semibold"
-									type="submit"
-								>
-									{manualLoading ? "生成中..." : "生成签到码"}
-								</button>
-							</div>
-
-							<p
-								role="status"
-								aria-live={statusKind === "error" ? "assertive" : "polite"}
-								aria-atomic="true"
-								className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${getStatusBannerClassName(statusKind)}`}
-							>
-								{statusText}
-							</p>
-						</form>
-
-						<div
-							ref={qrSectionRef}
-							className={`render-skip clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
-								qrRelayActive ? "relay-highlight" : ""
-							}`}
-						>
-							{hasQr ? (
-								<div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
-									<Image
-										src={qrDataUrl}
-										alt="签到码"
-										width={220}
-										height={220}
-										unoptimized
-										className="w-[220px] max-w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] p-2"
-									/>
-									<div className="space-y-3 text-sm numeric-tabular">
-										<p>
-											下次刷新倒计时：
-											<span className="font-semibold">{expireCountdown}s</span>
-										</p>
-										<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
-											{signUrl}
-										</p>
-										<div className="flex flex-wrap gap-2">
-											<button
-												type="button"
-												onClick={onDownloadQr}
-												className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
-											>
-												下载二维码
-											</button>
-											<button
-												type="button"
-												onClick={onCopySignUrl}
-												className="action-btn action-btn--quiet min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
-											>
-												复制签到链接
-											</button>
-										</div>
+										) : (
+											<p className="text-sm text-center text-[color:var(--green)]">
+												暂无签到码数据
+											</p>
+										)}
 									</div>
 								</div>
-							) : (
-								<p className="text-sm text-center text-[color:var(--green)]">暂无签到码数据</p>
-							)}
-						</div>
-					</section>
-				)}
-			</main>
-		</div>
+							</div>
+						</section>
+					) : (
+						<section
+							id="main-content"
+							className="grid items-start gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(340px,400px)_minmax(0,1fr)]"
+						>
+							<form onSubmit={onManualGenerate} className="panel rounded-2xl p-5 sm:p-6">
+								<div className="space-y-1">
+									<h2 className="font-[var(--font-serif)] text-2xl font-semibold">手动生成签到码</h2>
+									<p className="text-xs tracking-[0.08em] uppercase text-[color:var(--green)]">
+										课程ID为7位纯数字，UUID为32位十六进制字符串
+									</p>
+								</div>
+
+								<div className="mt-6 space-y-4">
+									<label className="block text-sm font-semibold">
+										课程ID / UUID
+										<input
+											className="focus-ring input-surface mt-2 w-full rounded-xl border border-[color:var(--line)] px-4 py-2.5"
+											name="manualCourseIdentifier"
+											value={manualIdentifier}
+											onChange={(e) => setManualIdentifier(e.target.value)}
+											placeholder="1203879 / EFD843630CE444769921BDDCD05298C7"
+											autoComplete="off"
+											spellCheck={false}
+											required
+										/>
+									</label>
+
+									<button
+										disabled={manualLoading}
+										className="action-btn action-btn--primary w-full rounded-xl px-4 py-3 text-sm font-semibold"
+										type="submit"
+									>
+										{manualLoading ? "生成中..." : "生成签到码"}
+									</button>
+								</div>
+
+								<p
+									role="status"
+									aria-live={statusKind === "error" ? "assertive" : "polite"}
+									aria-atomic="true"
+									className={`status-banner mt-4 rounded-xl px-3 py-2 text-sm leading-6 ${getStatusBannerClassName(statusKind)}`}
+								>
+									{statusText}
+								</p>
+							</form>
+
+							<div
+								ref={qrSectionRef}
+								className={`render-skip clay-card rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 ${
+									qrRelayActive ? "relay-highlight" : ""
+								}`}
+							>
+								{hasQr ? (
+									<div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-center">
+										<Image
+											src={qrDataUrl}
+											alt="签到码"
+											width={220}
+											height={220}
+											unoptimized
+											className="w-[220px] max-w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--surface-raised)] p-2"
+										/>
+										<div className="space-y-3 text-sm numeric-tabular">
+											<p>
+												刷新倒计时：
+												<span className="font-semibold">{expireCountdown}s</span>
+											</p>
+											<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
+												{signUrl}
+											</p>
+											<div className="flex flex-wrap gap-2">
+												<button
+													type="button"
+													onClick={onDownloadQr}
+													className="action-btn action-btn--secondary min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
+												>
+													下载二维码
+												</button>
+												<button
+													type="button"
+													onClick={onCopySignUrl}
+													className="action-btn action-btn--quiet min-h-11 rounded-lg px-3.5 py-2 text-xs font-semibold"
+												>
+													复制签到链接
+												</button>
+											</div>
+										</div>
+									</div>
+								) : (
+									<p className="text-sm text-center text-[color:var(--green)]">暂无签到码数据</p>
+								)}
+							</div>
+						</section>
+					)}
+				</main>
+			</div>
+		</>
 	);
 }

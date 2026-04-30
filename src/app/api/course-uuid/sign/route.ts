@@ -183,12 +183,12 @@ function isCredentialInputInvalid(username: string, password: string): boolean {
 	return false;
 }
 
-function normalizeTimeTableId(raw: string): string | null {
-	const compact = raw.trim().replace(/-/g, "");
-	if (!/^[0-9a-fA-F]{32}$/.test(compact)) {
+function normalizeCourseSchedId(raw: string): string | null {
+	const compact = raw.trim();
+	if (!/^\d{7}$/.test(compact)) {
 		return null;
 	}
-	return compact.toUpperCase();
+	return compact;
 }
 
 function buildLoginBody(username: string, password: string): string {
@@ -245,15 +245,15 @@ export async function POST(req: NextRequest) {
 		const bodyObject = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
 		const username = String(bodyObject.username ?? "").trim();
 		const password = String(bodyObject.password ?? "");
-		const timeTableIdRaw = String(bodyObject.timeTableId ?? "");
-		const timeTableId = normalizeTimeTableId(timeTableIdRaw);
+		const courseSchedIdRaw = String(bodyObject.courseSchedId ?? bodyObject.timeTableId ?? "");
+		const courseSchedId = normalizeCourseSchedId(courseSchedIdRaw);
 
 		if (isCredentialInputInvalid(username, password)) {
 			return jsonWithHeaders({ message: "学号或密码格式错误" }, { status: 400 });
 		}
 
-		if (!timeTableId) {
-			return jsonWithHeaders({ message: "课程 UUID 格式错误" }, { status: 400 });
+		if (!courseSchedId) {
+			return jsonWithHeaders({ message: "课程 ID 格式错误" }, { status: 400 });
 		}
 
 		stage = "login";
@@ -308,7 +308,7 @@ export async function POST(req: NextRequest) {
 		let signData: UpstreamSignResponse;
 		try {
 			const timestamp = Date.now();
-			const upstreamUrl = `${SIGN_URL}?timeTableId=${encodeURIComponent(timeTableId)}&timestamp=${timestamp}&id=${encodeURIComponent(userId)}`;
+			const upstreamUrl = `${SIGN_URL}?courseSchedId=${encodeURIComponent(courseSchedId)}&timestamp=${timestamp}&id=${encodeURIComponent(userId)}`;
 
 			const signRes = await fetch(upstreamUrl, {
 				method: "GET",
