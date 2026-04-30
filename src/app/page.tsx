@@ -222,6 +222,7 @@ export default function Home() {
 	const [qrRelayActive, setQrRelayActive] = useState(false);
 	const [qrSource, setQrSource] = useState<QrSource | null>(null);
 	const [updateAvailable, setUpdateAvailable] = useState(false);
+	const [updateMessage, setUpdateMessage] = useState("");
 	const siteVersionRef = useRef<string | null>(null);
 	const qrSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -274,13 +275,14 @@ export default function Home() {
 			try {
 				const res = await fetch("/api/version", { cache: "no-store" });
 				if (!res.ok) return;
-				const data = (await res.json()) as { version?: string };
+				const data = (await res.json()) as { version?: string; message?: string };
 				const latestVersion = data.version;
 
 				if (latestVersion && latestVersion !== "local-dev") {
 					if (siteVersionRef.current === null) {
 						siteVersionRef.current = latestVersion;
 					} else if (siteVersionRef.current !== latestVersion) {
+						setUpdateMessage(data.message || "页面代码已经更新，立即刷新体验最新功能。");
 						setUpdateAvailable(true);
 					}
 				}
@@ -809,11 +811,11 @@ export default function Home() {
 		<>
 			{updateAvailable && (
 				<div
-					className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300"
+					className="fixed bottom-4 left-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 animate-in slide-in-from-bottom-5 fade-in duration-300 sm:w-auto md:bottom-6 md:left-auto md:right-6 md:translate-x-0"
 					role="alert"
 					aria-live="polite"
 				>
-					<div className="flex w-[320px] max-w-[calc(100vw-3rem)] flex-col gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-2xl backdrop-blur-xl md:p-5">
+					<div className="flex w-full flex-col gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-2xl backdrop-blur-xl sm:w-[320px] md:p-5">
 						<div className="flex items-start gap-4">
 							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--surface-raised)]">
 								<svg
@@ -830,9 +832,7 @@ export default function Home() {
 							</div>
 							<div className="flex-1">
 								<h3 className="font-semibold text-sm">发现新版本</h3>
-								<p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-									页面代码已经更新，立即刷新体验最新功能。
-								</p>
+								<p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">{updateMessage}</p>
 							</div>
 							<button
 								onClick={() => setUpdateAvailable(false)}
