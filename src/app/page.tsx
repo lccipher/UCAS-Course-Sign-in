@@ -221,9 +221,6 @@ export default function Home() {
 	const [expireCountdown, setExpireCountdown] = useState(0);
 	const [qrRelayActive, setQrRelayActive] = useState(false);
 	const [qrSource, setQrSource] = useState<QrSource | null>(null);
-	const [updateAvailable, setUpdateAvailable] = useState(false);
-	const [updateMessage, setUpdateMessage] = useState("");
-	const siteVersionRef = useRef<string | null>(null);
 	const qrSectionRef = useRef<HTMLDivElement | null>(null);
 
 	const updateStatus = (kind: StatusKind, message: string) => {
@@ -267,50 +264,6 @@ export default function Home() {
 
 	useEffect(() => {
 		void getServerTimeOffset();
-
-		let isChecking = false;
-		const checkVersion = async () => {
-			if (isChecking) return;
-			isChecking = true;
-			try {
-				const res = await fetch("/api/version", { cache: "no-store" });
-				if (!res.ok) return;
-				const data = (await res.json()) as { version?: string; message?: string };
-				const latestVersion = data.version;
-
-				if (latestVersion && latestVersion !== "local-dev") {
-					if (siteVersionRef.current === null) {
-						siteVersionRef.current = latestVersion;
-					} else if (siteVersionRef.current !== latestVersion) {
-						setUpdateMessage(data.message || "页面代码已经更新，立即刷新体验最新功能。");
-						setUpdateAvailable(true);
-					}
-				}
-			} catch {
-				// Ignore errors silently
-			} finally {
-				isChecking = false;
-			}
-		};
-
-		// Check shortly after load to avoid competing with main requests
-		const initialTimer = window.setTimeout(() => void checkVersion(), 3000);
-
-		// Check when user returns to the tab
-		const onVisibilityChange = () => {
-			if (document.visibilityState === "visible") {
-				void checkVersion();
-			}
-		};
-
-		const intervalTimer = window.setInterval(() => void checkVersion(), 5 * 60 * 1000);
-		document.addEventListener("visibilitychange", onVisibilityChange);
-
-		return () => {
-			window.clearTimeout(initialTimer);
-			window.clearInterval(intervalTimer);
-			document.removeEventListener("visibilitychange", onVisibilityChange);
-		};
 	}, []);
 
 	const resetGeneratedSignState = () => {
@@ -743,7 +696,7 @@ export default function Home() {
 			const data = (await res.json()) as DirectSignResponse;
 
 			if (!res.ok || !data.success) {
-				updateActionStatus("error", data.message ?? "签到失败，请稍后重试或手动扫码");
+				updateActionStatus("error", data.message ?? "签到失败，请稍后重试");
 				return;
 			}
 
@@ -809,50 +762,6 @@ export default function Home() {
 
 	return (
 		<>
-			{updateAvailable && (
-				<div
-					className="fixed bottom-4 left-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 animate-in slide-in-from-bottom-5 fade-in duration-300 sm:w-auto md:bottom-6 md:left-auto md:right-6 md:translate-x-0"
-					role="alert"
-					aria-live="polite"
-				>
-					<div className="flex w-full flex-col gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-2xl backdrop-blur-xl sm:w-[320px] md:p-5">
-						<div className="flex items-start gap-4">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--surface-raised)]">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									className="h-5 w-5 text-amber-500"
-								>
-									<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-								</svg>
-							</div>
-							<div className="flex-1">
-								<h3 className="font-semibold text-sm">发现新版本</h3>
-								<p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">{updateMessage}</p>
-							</div>
-							<button
-								onClick={() => setUpdateAvailable(false)}
-								className="text-[color:var(--muted)] transition-colors hover:text-current cursor-pointer"
-								aria-label="关闭提示"
-							>
-								<svg viewBox="0 0 20 20" className="h-5 w-5 fill-current">
-									<path d="M5.293 5.293a1 1 0 0 1 1.414 0L10 8.586l3.293-3.293a1 1 0 1 1 1.414 1.414L11.414 10l3.293 3.293a1 1 0 0 1-1.414 1.414L10 11.414l-3.293 3.293a1 1 0 0 1-1.414-1.414L8.586 10 5.293 6.707a1 1 0 0 1 0-1.414z" />
-								</svg>
-							</button>
-						</div>
-						<button
-							onClick={() => window.location.reload()}
-							className="action-btn action-btn--primary w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-transform active:scale-[0.98] cursor-pointer"
-						>
-							立即刷新
-						</button>
-					</div>
-				</div>
-			)}
 			<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
 				<main className="mx-auto w-full max-w-6xl">
 					<header className="mb-7">
