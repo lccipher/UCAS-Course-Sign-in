@@ -36,6 +36,7 @@ type FeatureMode = "query" | "manual";
 
 type RepoStarsCache = {
 	stars: number;
+	repoUpdatedAt: string;
 	updatedAt: number;
 };
 
@@ -74,6 +75,19 @@ function getTodayInputDate(): string {
 	const now = new Date();
 	const offset = now.getTimezoneOffset() * 60000;
 	return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function formatRepoDate(isoDate: string): string {
+	if (!isoDate) {
+		return "";
+	}
+	const d = new Date(isoDate);
+	if (Number.isNaN(d.getTime())) {
+		return "";
+	}
+	const month = d.getMonth() + 1;
+	const day = d.getDate();
+	return `${month}.${String(day).padStart(2, "0")}`;
 }
 
 function formatRange(start: string, end: string): string {
@@ -175,7 +189,11 @@ function readRepoStarsCache(): RepoStarsCache | null {
 			return null;
 		}
 		const parsed = JSON.parse(raw) as RepoStarsCache;
-		if (typeof parsed?.stars !== "number" || typeof parsed?.updatedAt !== "number") {
+		if (
+			typeof parsed?.stars !== "number" ||
+			typeof parsed?.updatedAt !== "number" ||
+			typeof parsed?.repoUpdatedAt !== "string"
+		) {
 			return null;
 		}
 		return parsed;
@@ -184,13 +202,13 @@ function readRepoStarsCache(): RepoStarsCache | null {
 	}
 }
 
-function writeRepoStarsCache(stars: number): void {
+function writeRepoStarsCache(stars: number, repoUpdatedAt: string): void {
 	if (typeof window === "undefined") {
 		return;
 	}
 
 	try {
-		const payload: RepoStarsCache = { stars, updatedAt: Date.now() };
+		const payload: RepoStarsCache = { stars, repoUpdatedAt, updatedAt: Date.now() };
 		window.localStorage.setItem(REPO_STARS_CACHE_KEY, JSON.stringify(payload));
 	} catch {}
 }
@@ -200,6 +218,7 @@ export default function Home() {
 	const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedThemeMode);
 	const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 	const [repoStars, setRepoStars] = useState<number | null>(null);
+	const [repoUpdatedAt, setRepoUpdatedAt] = useState<string>("");
 	const [featureMode, setFeatureMode] = useState<FeatureMode>("query");
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
@@ -367,6 +386,7 @@ export default function Home() {
 
 		if (cached) {
 			setRepoStars(cached.stars);
+			setRepoUpdatedAt(cached.repoUpdatedAt);
 			if (Date.now() - cached.updatedAt < REPO_STARS_CACHE_TTL_MS) {
 				return () => {
 					controller.abort();
@@ -387,10 +407,11 @@ export default function Home() {
 					return;
 				}
 
-				const data = (await res.json()) as { stargazers_count?: number };
+				const data = (await res.json()) as { stargazers_count?: number; updated_at?: string };
 				if (typeof data.stargazers_count === "number") {
 					setRepoStars(data.stargazers_count);
-					writeRepoStarsCache(data.stargazers_count);
+					setRepoUpdatedAt(data.updated_at ?? "");
+					writeRepoStarsCache(data.stargazers_count, data.updated_at ?? "");
 				}
 			} catch {}
 		};
@@ -800,6 +821,14 @@ export default function Home() {
 									<span className="numeric-tabular">
 										{repoStars !== null ? repoStars.toLocaleString() : "--"}
 									</span>
+									<svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
+										<path
+											fillRule="evenodd"
+											d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+											clipRule="evenodd"
+										/>
+									</svg>
+									<span className="numeric-tabular">{formatRepoDate(repoUpdatedAt)}</span>
 								</a>
 							</div>
 							<button
