@@ -233,6 +233,39 @@ export default function Home() {
 		setActionStatusText(message);
 	};
 
+	const timeOffsetRef = useRef<number | null>(null);
+
+	const getServerTimeOffset = async (): Promise<number> => {
+		if (timeOffsetRef.current !== null) {
+			return timeOffsetRef.current;
+		}
+
+		try {
+			const start = Date.now();
+			const res = await fetch("/api/course-uuid/timestamp", {
+				cache: "no-store",
+			});
+			if (!res.ok) {
+				throw new Error();
+			}
+			const data = await res.json();
+			if (data.success && typeof data.timestamp === "number") {
+				const latency = Math.max(0, Date.now() - start);
+				const serverTime = data.timestamp + Math.floor(latency / 2);
+				const offset = serverTime - Date.now();
+				timeOffsetRef.current = offset;
+				return offset;
+			}
+		} catch {}
+
+		timeOffsetRef.current = 0;
+		return 0;
+	};
+
+	useEffect(() => {
+		void getServerTimeOffset();
+	}, []);
+
 	const resetGeneratedSignState = () => {
 		setSelectedUuid("");
 		setSignUrl("");
@@ -262,7 +295,8 @@ export default function Home() {
 	};
 
 	const regenerateAutoQr = async (source: QrSource): Promise<boolean> => {
-		const currentTimestamp = Date.now();
+		const offset = await getServerTimeOffset();
+		const currentTimestamp = Date.now() + offset;
 		const payload = getPayloadFromSource(source, currentTimestamp);
 		if (!payload) {
 			setQrDataUrl("");
@@ -375,7 +409,7 @@ export default function Home() {
 		}
 
 		const updateCountdown = () => {
-			const remainMs = expireAt - Date.now();
+			const remainMs = expireAt - (Date.now() + (timeOffsetRef.current || 0));
 			setExpireCountdown(Math.max(0, Math.ceil(remainMs / 1000)));
 		};
 
@@ -392,7 +426,7 @@ export default function Home() {
 			return;
 		}
 
-		const delay = Math.max(0, expireAt - Date.now());
+		const delay = Math.max(0, expireAt - (Date.now() + (timeOffsetRef.current || 0)));
 		const timer = window.setTimeout(async () => {
 			const ok = await regenerateAutoQr(qrSource);
 			if (!ok) {
@@ -496,7 +530,7 @@ export default function Home() {
 	const onManualGenerate = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const source: QrSource = { mode: "manual", identifier: manualIdentifier };
-		const payload = getPayloadFromSource(source, Date.now());
+		const payload = getPayloadFromSource(source, Date.now() + (timeOffsetRef.current || 0));
 
 		if (!payload) {
 			updateStatus("error", "请输入纯数字课程ID或32位UUID");
@@ -535,7 +569,8 @@ export default function Home() {
 			return;
 		}
 
-		const deadline = Date.now() + DOWNLOAD_QR_TTL_MS;
+		const offset = await getServerTimeOffset();
+		const deadline = Date.now() + offset + DOWNLOAD_QR_TTL_MS;
 		const payload = getPayloadFromSource(qrSource, deadline);
 		if (!payload) {
 			if (featureMode === "query") {
@@ -661,7 +696,7 @@ export default function Home() {
 			const data = (await res.json()) as DirectSignResponse;
 
 			if (!res.ok || !data.success) {
-				updateActionStatus("error", data.message ?? "签到失败，请稍后重试");
+				updateActionStatus("error", data.message ?? "签到失败，请稍后重试或手动扫码");
 				return;
 			}
 
@@ -693,7 +728,7 @@ export default function Home() {
 		return courses.find((item) => item.uuid === selectedUuid) ?? null;
 	}, [courses, selectedUuid]);
 
-	const now = Date.now();
+	const now = Date.now() + (timeOffsetRef.current || 0);
 
 	const signWindow = useMemo(() => {
 		if (!selectedCourse) {
@@ -1051,7 +1086,7 @@ export default function Home() {
 											/>
 											<div className="space-y-3 text-sm numeric-tabular">
 												<p>
-													下次刷新倒计时：
+													刷新倒计时：
 													<span className="font-semibold">{expireCountdown}s</span>
 												</p>
 												<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
@@ -1163,7 +1198,7 @@ export default function Home() {
 									/>
 									<div className="space-y-3 text-sm numeric-tabular">
 										<p>
-											下次刷新倒计时：
+											刷新倒计时：
 											<span className="font-semibold">{expireCountdown}s</span>
 										</p>
 										<p className="break-all font-mono text-xs leading-6 text-[color:var(--muted)]">
