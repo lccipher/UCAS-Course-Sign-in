@@ -681,6 +681,7 @@ export default function Home() {
 		updateActionStatus("loading", "正在发起签到…");
 
 		try {
+			const offset = await getServerTimeOffset();
 			const res = await fetch("/api/course-uuid/sign", {
 				method: "POST",
 				headers: {
@@ -690,6 +691,7 @@ export default function Home() {
 					username: safeUsername,
 					password,
 					courseSchedId,
+					timestamp: Date.now() + offset,
 				}),
 			});
 
