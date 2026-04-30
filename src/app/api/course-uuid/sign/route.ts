@@ -40,6 +40,8 @@ type UpstreamSignResponse = {
 	STATUS?: string;
 	message?: string;
 	msg?: string;
+	ERRCODE?: string;
+	ERRMSG?: string;
 	result?: {
 		stuSignId?: string;
 		stuSignStatus?: string;
@@ -347,7 +349,7 @@ export async function POST(req: NextRequest) {
 		const upstreamStatus = signData?.STATUS ?? "";
 		const stuSignId = signData?.result?.stuSignId ?? "";
 		const stuSignStatus = signData?.result?.stuSignStatus ?? "";
-		const upstreamMessage = signData?.result?.msg ?? signData?.msg ?? signData?.message ?? "";
+		const upstreamMessage = signData?.result?.msg ?? signData?.ERRMSG ?? signData?.msg ?? signData?.message ?? "";
 
 		if (upstreamStatus === "0" && stuSignStatus === "1") {
 			return jsonWithHeaders(

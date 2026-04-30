@@ -691,7 +691,9 @@ export default function Home() {
 					username: safeUsername,
 					password,
 					courseSchedId,
-					timestamp: Date.now() + offset,
+					// Subtract 3s delay to simulate QR scan latency.
+					// iClass requires the timestamp to be in the past for QR sign-in.
+					timestamp: Date.now() + offset - 3000,
 				}),
 			});
 
