@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const LOGIN_URL = "https://iclass.ucas.edu.cn:8181/app/user/login.action";
-const SIGN_URL = "http://124.16.75.106:8081/app/course/stu_scan_sign.action";
+const SIGN_URL = "https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action";
 
 const LOGIN_UA = "student_5.0.1.2_android_12_20__110000";
 const API_UA = "student_5.0.1.2_android_12_20_100000000000000_110000";
@@ -16,7 +16,7 @@ const REQUEST_TIMEOUT_MS = 10000;
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const RATE_LIMIT_WINDOW_MAX = toPositiveInt(process.env.RATE_LIMIT_5M_MAX, 5);
+const RATE_LIMIT_WINDOW_MAX = toPositiveInt(process.env.RATE_LIMIT_5M_MAX, 100);
 const RATE_LIMIT_DAILY_MAX = toPositiveInt(process.env.RATE_LIMIT_DAILY_MAX, 20);
 const RATE_LIMIT_SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_USERNAME_LENGTH = 40;
@@ -40,6 +40,8 @@ type UpstreamSignResponse = {
 	STATUS?: string;
 	message?: string;
 	msg?: string;
+	ERRCODE?: string;
+	ERRMSG?: string;
 	result?: {
 		stuSignId?: string;
 		stuSignStatus?: string;
@@ -247,6 +249,10 @@ export async function POST(req: NextRequest) {
 		const password = String(bodyObject.password ?? "");
 		const courseSchedIdRaw = String(bodyObject.courseSchedId ?? bodyObject.timeTableId ?? "");
 		const courseSchedId = normalizeCourseSchedId(courseSchedIdRaw);
+		const clientTimestamp =
+			typeof bodyObject.timestamp === "number" && Number.isFinite(bodyObject.timestamp)
+				? bodyObject.timestamp
+				: Date.now();
 
 		if (isCredentialInputInvalid(username, password)) {
 			return jsonWithHeaders({ message: "学号或密码格式错误" }, { status: 400 });
@@ -307,8 +313,7 @@ export async function POST(req: NextRequest) {
 
 		let signData: UpstreamSignResponse;
 		try {
-			const timestamp = Date.now();
-			const upstreamUrl = `${SIGN_URL}?courseSchedId=${encodeURIComponent(courseSchedId)}&timestamp=${timestamp}&id=${encodeURIComponent(userId)}`;
+			const upstreamUrl = `${SIGN_URL}?courseSchedId=${encodeURIComponent(courseSchedId)}&timestamp=${clientTimestamp}&id=${encodeURIComponent(userId)}`;
 
 			const signRes = await fetch(upstreamUrl, {
 				method: "GET",
@@ -344,7 +349,7 @@ export async function POST(req: NextRequest) {
 		const upstreamStatus = signData?.STATUS ?? "";
 		const stuSignId = signData?.result?.stuSignId ?? "";
 		const stuSignStatus = signData?.result?.stuSignStatus ?? "";
-		const upstreamMessage = signData?.result?.msg ?? signData?.msg ?? signData?.message ?? "";
+		const upstreamMessage = signData?.result?.msg ?? signData?.ERRMSG ?? signData?.msg ?? signData?.message ?? "";
 
 		if (upstreamStatus === "0" && stuSignStatus === "1") {
 			return jsonWithHeaders(

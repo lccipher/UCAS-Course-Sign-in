@@ -36,6 +36,7 @@ type FeatureMode = "query" | "manual";
 
 type RepoStarsCache = {
 	stars: number;
+	repoUpdatedAt: string;
 	updatedAt: number;
 };
 
@@ -74,6 +75,19 @@ function getTodayInputDate(): string {
 	const now = new Date();
 	const offset = now.getTimezoneOffset() * 60000;
 	return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function formatRepoDate(isoDate: string): string {
+	if (!isoDate) {
+		return "";
+	}
+	const d = new Date(isoDate);
+	if (Number.isNaN(d.getTime())) {
+		return "";
+	}
+	const month = d.getMonth() + 1;
+	const day = d.getDate();
+	return `${month}.${String(day).padStart(2, "0")}`;
 }
 
 function formatRange(start: string, end: string): string {
@@ -175,7 +189,11 @@ function readRepoStarsCache(): RepoStarsCache | null {
 			return null;
 		}
 		const parsed = JSON.parse(raw) as RepoStarsCache;
-		if (typeof parsed?.stars !== "number" || typeof parsed?.updatedAt !== "number") {
+		if (
+			typeof parsed?.stars !== "number" ||
+			typeof parsed?.updatedAt !== "number" ||
+			typeof parsed?.repoUpdatedAt !== "string"
+		) {
 			return null;
 		}
 		return parsed;
@@ -184,13 +202,13 @@ function readRepoStarsCache(): RepoStarsCache | null {
 	}
 }
 
-function writeRepoStarsCache(stars: number): void {
+function writeRepoStarsCache(stars: number, repoUpdatedAt: string): void {
 	if (typeof window === "undefined") {
 		return;
 	}
 
 	try {
-		const payload: RepoStarsCache = { stars, updatedAt: Date.now() };
+		const payload: RepoStarsCache = { stars, repoUpdatedAt, updatedAt: Date.now() };
 		window.localStorage.setItem(REPO_STARS_CACHE_KEY, JSON.stringify(payload));
 	} catch {}
 }
@@ -200,6 +218,7 @@ export default function Home() {
 	const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedThemeMode);
 	const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 	const [repoStars, setRepoStars] = useState<number | null>(null);
+	const [repoUpdatedAt, setRepoUpdatedAt] = useState<string>("");
 	const [featureMode, setFeatureMode] = useState<FeatureMode>("query");
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
@@ -221,9 +240,6 @@ export default function Home() {
 	const [expireCountdown, setExpireCountdown] = useState(0);
 	const [qrRelayActive, setQrRelayActive] = useState(false);
 	const [qrSource, setQrSource] = useState<QrSource | null>(null);
-	const [updateAvailable, setUpdateAvailable] = useState(false);
-	const [updateMessage, setUpdateMessage] = useState("");
-	const siteVersionRef = useRef<string | null>(null);
 	const qrSectionRef = useRef<HTMLDivElement | null>(null);
 
 	const updateStatus = (kind: StatusKind, message: string) => {
@@ -267,50 +283,6 @@ export default function Home() {
 
 	useEffect(() => {
 		void getServerTimeOffset();
-
-		let isChecking = false;
-		const checkVersion = async () => {
-			if (isChecking) return;
-			isChecking = true;
-			try {
-				const res = await fetch("/api/version", { cache: "no-store" });
-				if (!res.ok) return;
-				const data = (await res.json()) as { version?: string; message?: string };
-				const latestVersion = data.version;
-
-				if (latestVersion && latestVersion !== "local-dev") {
-					if (siteVersionRef.current === null) {
-						siteVersionRef.current = latestVersion;
-					} else if (siteVersionRef.current !== latestVersion) {
-						setUpdateMessage(data.message || "页面代码已经更新，立即刷新体验最新功能。");
-						setUpdateAvailable(true);
-					}
-				}
-			} catch {
-				// Ignore errors silently
-			} finally {
-				isChecking = false;
-			}
-		};
-
-		// Check shortly after load to avoid competing with main requests
-		const initialTimer = window.setTimeout(() => void checkVersion(), 3000);
-
-		// Check when user returns to the tab
-		const onVisibilityChange = () => {
-			if (document.visibilityState === "visible") {
-				void checkVersion();
-			}
-		};
-
-		const intervalTimer = window.setInterval(() => void checkVersion(), 5 * 60 * 1000);
-		document.addEventListener("visibilitychange", onVisibilityChange);
-
-		return () => {
-			window.clearTimeout(initialTimer);
-			window.clearInterval(intervalTimer);
-			document.removeEventListener("visibilitychange", onVisibilityChange);
-		};
 	}, []);
 
 	const resetGeneratedSignState = () => {
@@ -414,6 +386,7 @@ export default function Home() {
 
 		if (cached) {
 			setRepoStars(cached.stars);
+			setRepoUpdatedAt(cached.repoUpdatedAt);
 			if (Date.now() - cached.updatedAt < REPO_STARS_CACHE_TTL_MS) {
 				return () => {
 					controller.abort();
@@ -434,10 +407,11 @@ export default function Home() {
 					return;
 				}
 
-				const data = (await res.json()) as { stargazers_count?: number };
+				const data = (await res.json()) as { stargazers_count?: number; updated_at?: string };
 				if (typeof data.stargazers_count === "number") {
 					setRepoStars(data.stargazers_count);
-					writeRepoStarsCache(data.stargazers_count);
+					setRepoUpdatedAt(data.updated_at ?? "");
+					writeRepoStarsCache(data.stargazers_count, data.updated_at ?? "");
 				}
 			} catch {}
 		};
@@ -728,6 +702,7 @@ export default function Home() {
 		updateActionStatus("loading", "正在发起签到…");
 
 		try {
+			const offset = await getServerTimeOffset();
 			const res = await fetch("/api/course-uuid/sign", {
 				method: "POST",
 				headers: {
@@ -737,13 +712,16 @@ export default function Home() {
 					username: safeUsername,
 					password,
 					courseSchedId,
+					// Subtract 3s delay to simulate QR scan latency.
+					// iClass requires the timestamp to be in the past for QR sign-in.
+					timestamp: Date.now() + offset - 3000,
 				}),
 			});
 
 			const data = (await res.json()) as DirectSignResponse;
 
 			if (!res.ok || !data.success) {
-				updateActionStatus("error", data.message ?? "签到失败，请稍后重试或手动扫码");
+				updateActionStatus("error", data.message ?? "签到失败，请稍后重试");
 				return;
 			}
 
@@ -809,50 +787,6 @@ export default function Home() {
 
 	return (
 		<>
-			{updateAvailable && (
-				<div
-					className="fixed bottom-4 left-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 animate-in slide-in-from-bottom-5 fade-in duration-300 sm:w-auto md:bottom-6 md:left-auto md:right-6 md:translate-x-0"
-					role="alert"
-					aria-live="polite"
-				>
-					<div className="flex w-full flex-col gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-2xl backdrop-blur-xl sm:w-[320px] md:p-5">
-						<div className="flex items-start gap-4">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--surface-raised)]">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									className="h-5 w-5 text-amber-500"
-								>
-									<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-								</svg>
-							</div>
-							<div className="flex-1">
-								<h3 className="font-semibold text-sm">发现新版本</h3>
-								<p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">{updateMessage}</p>
-							</div>
-							<button
-								onClick={() => setUpdateAvailable(false)}
-								className="text-[color:var(--muted)] transition-colors hover:text-current cursor-pointer"
-								aria-label="关闭提示"
-							>
-								<svg viewBox="0 0 20 20" className="h-5 w-5 fill-current">
-									<path d="M5.293 5.293a1 1 0 0 1 1.414 0L10 8.586l3.293-3.293a1 1 0 1 1 1.414 1.414L11.414 10l3.293 3.293a1 1 0 0 1-1.414 1.414L10 11.414l-3.293 3.293a1 1 0 0 1-1.414-1.414L8.586 10 5.293 6.707a1 1 0 0 1 0-1.414z" />
-								</svg>
-							</button>
-						</div>
-						<button
-							onClick={() => window.location.reload()}
-							className="action-btn action-btn--primary w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-transform active:scale-[0.98] cursor-pointer"
-						>
-							立即刷新
-						</button>
-					</div>
-				</div>
-			)}
 			<div className="grain flex min-h-screen flex-col px-4 py-7 sm:px-10">
 				<main className="mx-auto w-full max-w-6xl">
 					<header className="mb-7">
@@ -887,6 +821,14 @@ export default function Home() {
 									<span className="numeric-tabular">
 										{repoStars !== null ? repoStars.toLocaleString() : "--"}
 									</span>
+									<svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-current">
+										<path
+											fillRule="evenodd"
+											d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z"
+											clipRule="evenodd"
+										/>
+									</svg>
+									<span className="numeric-tabular">{formatRepoDate(repoUpdatedAt)}</span>
 								</a>
 							</div>
 							<button
