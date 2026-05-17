@@ -7,8 +7,8 @@
  *   node scripts/test-sign.mjs <学号> <密码> [课程ID] [--base-url http://localhost:3000]
  *
  * 示例：
- *   node scripts/test-sign.mjs 202511112222333 mypassword 1180610
- *   node scripts/test-sign.mjs 202511112222333 mypassword 1180610 --base-url https://my-site.vercel.app
+ *   node scripts/test-sign.mjs 202511112222333 mypassword 1111111
+ *   node scripts/test-sign.mjs 202511112222333 mypassword 1111111 --base-url https://my-site.vercel.app
  *
  * 测试内容：
  *   1. 时间戳校准 — 验证 UCAS 时间戳 API 可达且返回合法值
@@ -24,10 +24,10 @@
     npm run test:sign <学号> <密码> [课程ID]
 
     # 示例
-    npm run test:sign 202511112222333 mypassword 1180610
+    npm run test:sign 202511112222333 mypassword 1111111
 
     # 测试生产环境
-    node scripts/test-sign.mjs 202511112222333 mypassword 1180610 --base-url https://你的域名
+    node scripts/test-sign.mjs 202511112222333 mypassword 1111111 --base-url https://你的域名
 
     # 查看帮助
     node scripts/test-sign.mjs --help
@@ -51,22 +51,22 @@ if (args.length < 2 || args.includes("--help") || args.includes("-h")) {
 参数:
   学号        UCAS 学号
   密码        UCAS 密码
-  课程ID      7位课程ID（默认: 1180610）
+  课程ID      7位课程ID（默认: 1111111）
 
 选项:
   --base-url  API 基地址（默认: http://localhost:3000）
   --help      显示帮助
 
 示例:
-  node scripts/test-sign.mjs 202511112222333 mypass 1180610
-  node scripts/test-sign.mjs 202511112222333 mypass 1180610 --base-url https://my.vercel.app
+  node scripts/test-sign.mjs 202511112222333 mypass 1111111
+  node scripts/test-sign.mjs 202511112222333 mypass 1111111 --base-url https://my.vercel.app
 `);
     process.exit(0);
 }
 
 const username = args[0];
 const password = args[1];
-const courseSchedId = /^\d{7}$/.test(args[2] ?? "") ? args[2] : "1180610";
+const courseSchedId = /^\d{7}$/.test(args[2] ?? "") ? args[2] : "1111111";
 const baseUrlFlagIdx = args.indexOf("--base-url");
 const baseUrl = baseUrlFlagIdx >= 0 ? args[baseUrlFlagIdx + 1]?.replace(/\/+$/, "") || "http://localhost:3000" : "http://localhost:3000";
 
