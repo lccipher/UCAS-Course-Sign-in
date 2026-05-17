@@ -44,6 +44,9 @@ const REPO_STARS_CACHE_KEY = "ucas-repo-stars-cache-v1";
 const REPO_STARS_CACHE_TTL_MS = 1000 * 60 * 30;
 const AUTO_QR_TTL_MS = 5 * 1000;
 const DOWNLOAD_QR_TTL_MS = 10 * 1000;
+// UCAS 的 get_timestamp.do 与 stu_scan_sign.action 运行在不同服务器上，
+// 两者时钟偏差约 3.5s。校准对齐了 timestamp API，需要减去缓冲才能被 sign API 接受。
+const SIGN_TIMESTAMP_BUFFER_MS = 5 * 1000;
 
 const ACTION_STATUS_DEFAULT_TEXT = "生成签到码后，可在此查看下载、复制和点击签到的状态信息";
 const SIGN_BASE_URL = "https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action";
@@ -252,17 +255,19 @@ export default function Home() {
 		setActionStatusText(message);
 	};
 
-	const timeOffsetRef = useRef<number | null>(null);
+	const timeOffsetRef = useRef<{ offset: number; fetchedAt: number } | null>(null);
+	const OFFSET_TTL_MS = 30 * 1000;
 
 	const getServerTimeOffset = async (): Promise<number> => {
-		if (timeOffsetRef.current !== null) {
-			return timeOffsetRef.current;
+		const cached = timeOffsetRef.current;
+		if (cached && Date.now() - cached.fetchedAt < OFFSET_TTL_MS) {
+			return cached.offset;
 		}
 
 		try {
 			const start = Date.now();
 			const res = await fetch("/api/course-uuid/timestamp", {
-				cache: "no-store",
+				cache: "no-store"
 			});
 			if (!res.ok) {
 				throw new Error();
@@ -272,12 +277,14 @@ export default function Home() {
 				const latency = Math.max(0, Date.now() - start);
 				const serverTime = data.timestamp + Math.floor(latency / 2);
 				const offset = serverTime - Date.now();
-				timeOffsetRef.current = offset;
+				timeOffsetRef.current = { offset, fetchedAt: Date.now() };
 				return offset;
 			}
 		} catch {}
 
-		timeOffsetRef.current = 0;
+		// 校准失败：优先用过期的缓存降级
+		if (cached) return cached.offset;
+		timeOffsetRef.current = { offset: 0, fetchedAt: Date.now() };
 		return 0;
 	};
 
@@ -309,14 +316,16 @@ export default function Home() {
 		return QRCode.toDataURL(payload, {
 			width: 320,
 			margin: 1,
-			errorCorrectionLevel: "M",
+			errorCorrectionLevel: "M"
 		});
 	};
 
 	const regenerateAutoQr = async (source: QrSource): Promise<boolean> => {
 		const offset = await getServerTimeOffset();
 		const currentTimestamp = Date.now() + offset;
-		const payload = getPayloadFromSource(source, currentTimestamp);
+		// 签到时间戳减去缓冲，弥补 UCAS 两台服务器间的时钟偏差
+		const signTimestamp = currentTimestamp - SIGN_TIMESTAMP_BUFFER_MS;
+		const payload = getPayloadFromSource(source, signTimestamp);
 		if (!payload) {
 			setQrDataUrl("");
 			setSignUrl("");
@@ -399,8 +408,8 @@ export default function Home() {
 				const res = await fetch("https://api.github.com/repos/lccipher/UCAS-Course-Sign-in", {
 					signal: controller.signal,
 					headers: {
-						Accept: "application/vnd.github+json",
-					},
+						Accept: "application/vnd.github+json"
+					}
 				});
 
 				if (!res.ok) {
@@ -430,7 +439,7 @@ export default function Home() {
 		}
 
 		const updateCountdown = () => {
-			const remainMs = expireAt - (Date.now() + (timeOffsetRef.current || 0));
+			const remainMs = expireAt - (Date.now() + (timeOffsetRef.current?.offset ?? 0));
 			setExpireCountdown(Math.max(0, Math.ceil(remainMs / 1000)));
 		};
 
@@ -447,7 +456,7 @@ export default function Home() {
 			return;
 		}
 
-		const delay = Math.max(0, expireAt - (Date.now() + (timeOffsetRef.current || 0)));
+		const delay = Math.max(0, expireAt - (Date.now() + (timeOffsetRef.current?.offset ?? 0)));
 		const timer = window.setTimeout(async () => {
 			const ok = await regenerateAutoQr(qrSource);
 			if (!ok) {
@@ -498,13 +507,13 @@ export default function Home() {
 			const res = await fetch("/api/course-uuid/query", {
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
+					"Content-Type": "application/json"
 				},
 				body: JSON.stringify({
 					username: username.trim(),
 					password,
-					date: toYyyyMMdd(date),
-				}),
+					date: toYyyyMMdd(date)
+				})
 			});
 
 			const data = (await res.json()) as QueryResponse & { message?: string };
@@ -551,7 +560,7 @@ export default function Home() {
 	const onManualGenerate = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const source: QrSource = { mode: "manual", identifier: manualIdentifier };
-		const payload = getPayloadFromSource(source, Date.now() + (timeOffsetRef.current || 0));
+		const payload = getPayloadFromSource(source, Date.now() + (timeOffsetRef.current?.offset ?? 0));
 
 		if (!payload) {
 			updateStatus("error", "请输入纯数字课程ID或32位UUID");
@@ -649,13 +658,13 @@ export default function Home() {
 			const res = await fetch("/api/course-uuid/query", {
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
+					"Content-Type": "application/json"
 				},
 				body: JSON.stringify({
 					username: username.trim(),
 					password,
-					date: toYyyyMMdd(date),
-				}),
+					date: toYyyyMMdd(date)
+				})
 			});
 
 			const data = (await res.json()) as QueryResponse & { message?: string };
@@ -702,20 +711,30 @@ export default function Home() {
 		updateActionStatus("loading", "正在发起签到…");
 
 		try {
-			const offset = await getServerTimeOffset();
+			// 优先从当前二维码URL中提取时间戳，与扫码行为完全一致
+			let signTimestamp = 0;
+			try {
+				const url = new URL(signUrl);
+				const ts = url.searchParams.get("timestamp");
+				if (ts) signTimestamp = Number(ts);
+			} catch {}
+			// 降级：使用校准后的当前时间戳（减去缓冲）
+			if (!signTimestamp || !Number.isFinite(signTimestamp)) {
+				const offset = await getServerTimeOffset();
+				signTimestamp = Date.now() + offset - SIGN_TIMESTAMP_BUFFER_MS;
+			}
+
 			const res = await fetch("/api/course-uuid/sign", {
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
+					"Content-Type": "application/json"
 				},
 				body: JSON.stringify({
 					username: safeUsername,
 					password,
 					courseSchedId,
-					// Subtract 3s delay to simulate QR scan latency.
-					// iClass requires the timestamp to be in the past for QR sign-in.
-					timestamp: Date.now() + offset - 3000,
-				}),
+					timestamp: signTimestamp
+				})
 			});
 
 			const data = (await res.json()) as DirectSignResponse;
@@ -732,7 +751,7 @@ export default function Home() {
 			} else {
 				updateActionStatus(
 					"info",
-					`${data.message ?? "签到成功"}${signIdText}，但课程状态刷新失败，请手动查询`,
+					`${data.message ?? "签到成功"}${signIdText}，但课程状态刷新失败，请手动查询`
 				);
 			}
 		} catch {
@@ -753,7 +772,7 @@ export default function Home() {
 		return courses.find((item) => item.uuid === selectedUuid) ?? null;
 	}, [courses, selectedUuid]);
 
-	const now = Date.now() + (timeOffsetRef.current || 0);
+	const now = Date.now() + (timeOffsetRef.current?.offset ?? 0);
 
 	const signWindow = useMemo(() => {
 		if (!selectedCourse) {
@@ -769,12 +788,12 @@ export default function Home() {
 		const openAt = new Date(classBegin.getTime() - 30 * 60 * 1000);
 		return {
 			openAt: openAt.getTime(),
-			closeAt: classEnd.getTime(),
+			closeAt: classEnd.getTime()
 		};
 	}, [selectedCourse, date]);
 
 	const directSignBlockedByTime = Boolean(
-		selectedCourse && (!signWindow || now < signWindow.openAt || now > signWindow.closeAt),
+		selectedCourse && (!signWindow || now < signWindow.openAt || now > signWindow.closeAt)
 	);
 
 	const directSignDisabled = loading || directSignLoading || !hasQr || !selectedUuid || directSignBlockedByTime;
@@ -1013,7 +1032,7 @@ export default function Home() {
 															<dd className="break-words">
 																{formatRange(
 																	course.classBeginTime,
-																	course.classEndTime,
+																	course.classEndTime
 																)}
 															</dd>
 														</dl>
@@ -1078,7 +1097,7 @@ export default function Home() {
 																<td className="max-w-[180px] px-3 py-3 break-words">
 																	{formatRange(
 																		course.classBeginTime,
-																		course.classEndTime,
+																		course.classEndTime
 																	)}
 																</td>
 																<td className="px-3 py-3">

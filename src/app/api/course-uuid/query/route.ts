@@ -37,13 +37,13 @@ const RESPONSE_HEADERS = {
 	"Cache-Control": "no-store",
 	"X-Content-Type-Options": "nosniff",
 	"Referrer-Policy": "no-referrer",
-	"X-Frame-Options": "DENY",
+	"X-Frame-Options": "DENY"
 };
 const REQUEST_TIMEOUT_MS = 10000;
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const RATE_LIMIT_WINDOW_MAX = toPositiveInt(process.env.RATE_LIMIT_5M_MAX, 5);
+const RATE_LIMIT_WINDOW_MAX = toPositiveInt(process.env.RATE_LIMIT_5M_MAX, 10);
 const RATE_LIMIT_DAILY_MAX = toPositiveInt(process.env.RATE_LIMIT_DAILY_MAX, 20);
 const RATE_LIMIT_SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_USERNAME_LENGTH = 40;
@@ -92,8 +92,8 @@ function jsonWithHeaders(body: unknown, init: { status: number; headers?: Record
 		status: init.status,
 		headers: {
 			...RESPONSE_HEADERS,
-			...(init.headers ?? {}),
-		},
+			...(init.headers ?? {})
+		}
 	});
 }
 
@@ -153,7 +153,7 @@ function consumeRateLimit(ip: string, now: number): { ok: true } | { ok: false; 
 		({
 			windowHits: [],
 			dailyCount: 0,
-			dailyResetAt: now + ONE_DAY_MS,
+			dailyResetAt: now + ONE_DAY_MS
 		} satisfies RateLimitState);
 
 	if (state.dailyResetAt <= now) {
@@ -205,7 +205,7 @@ function buildLoginBody(username: string, password: string): string {
 		password,
 		verificationType: "1",
 		verificationUrl: verificationUrlTemplate,
-		userLevel: "1",
+		userLevel: "1"
 	});
 
 	return body.toString();
@@ -220,7 +220,7 @@ function sanitizeCourse(item: CourseItem) {
 		weekDay: item.weekDay ?? "",
 		classBeginTime: item.classBeginTime ?? "",
 		classEndTime: item.classEndTime ?? "",
-		signStatus: item.signStatus ?? "",
+		signStatus: item.signStatus ?? ""
 	};
 }
 
@@ -247,9 +247,9 @@ export async function POST(req: NextRequest) {
 				{
 					status: 429,
 					headers: {
-						"Retry-After": String(rateLimitResult.retryAfterSec),
-					},
-				},
+						"Retry-After": String(rateLimitResult.retryAfterSec)
+					}
+				}
 			);
 		}
 
@@ -284,11 +284,11 @@ export async function POST(req: NextRequest) {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
-					"User-Agent": LOGIN_UA,
+					"User-Agent": LOGIN_UA
 				},
 				body: buildLoginBody(username, password),
 				cache: "no-store",
-				signal: loginAbortController.signal,
+				signal: loginAbortController.signal
 			});
 
 			if (!loginRes.ok) {
@@ -330,10 +330,10 @@ export async function POST(req: NextRequest) {
 				method: "GET",
 				headers: {
 					sessionId,
-					"User-Agent": API_UA,
+					"User-Agent": API_UA
 				},
 				cache: "no-store",
-				signal: scheduleAbortController.signal,
+				signal: scheduleAbortController.signal
 			});
 
 			if (!scheduleRes.ok) {
@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
 					502,
 					"UPSTREAM_SCHEDULE_HTTP",
 					`课表接口HTTP异常: ${scheduleRes.status}`,
-					"schedule",
+					"schedule"
 				);
 			}
 
@@ -372,9 +372,9 @@ export async function POST(req: NextRequest) {
 			{
 				date,
 				total: courses.length,
-				courses,
+				courses
 			},
-			{ status: 200 },
+			{ status: 200 }
 		);
 	} catch (error) {
 		const durationMs = Date.now() - startedAt;
@@ -385,7 +385,7 @@ export async function POST(req: NextRequest) {
 			durationMs,
 			errorName: error instanceof Error ? error.name : "UnknownError",
 			errorMessage: error instanceof Error ? error.message : "Unknown error",
-			code: isApiError ? error.code : "UNEXPECTED_ERROR",
+			code: isApiError ? error.code : "UNEXPECTED_ERROR"
 		};
 
 		console.error("[course-uuid/query]", JSON.stringify(logPayload));
