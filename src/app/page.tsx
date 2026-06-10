@@ -46,7 +46,7 @@ const AUTO_QR_TTL_MS = 5 * 1000;
 const DOWNLOAD_QR_TTL_MS = 10 * 1000;
 // UCAS 的 get_timestamp.do 与 stu_scan_sign.action 运行在不同服务器上，
 // 两者时钟偏差约 3.5s。校准对齐了 timestamp API，需要减去缓冲才能被 sign API 接受。
-const SIGN_TIMESTAMP_BUFFER_MS = 5 * 1000;
+const SIGN_TIMESTAMP_BUFFER_MS = 3 * 1000;
 
 const ACTION_STATUS_DEFAULT_TEXT = "生成签到码后，可在此查看下载、复制和点击签到的状态信息";
 const SIGN_BASE_URL = "https://iclass.ucas.edu.cn:8181/app/course/stu_scan_sign.action";
