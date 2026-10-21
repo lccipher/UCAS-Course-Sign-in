@@ -4,9 +4,12 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev",
+		"dev:auto": "node scripts/start-auto-sign.mjs dev",
 		"build": "next build",
 		"start": "next start",
+		"start:auto": "node scripts/start-auto-sign.mjs",
 		"lint": "eslint",
+		"auto-sign": "node scripts/auto-sign-local.mjs",
 		"test:sign": "node scripts/test-sign.mjs"
 	},
 	"dependencies": {

@@ -18,6 +18,7 @@ type QueryResponse = {
 	date: string;
 	total: number;
 	courses: CourseItem[];
+	noCourses?: boolean;
 };
 
 type DirectSignResponse = {
@@ -525,7 +526,11 @@ export default function Home() {
 			}
 
 			setCourses(data.courses ?? []);
-			updateStatus("success", `已查询到 ${data.total} 门课程（${data.date}）`);
+			if (data.noCourses || data.total === 0) {
+				updateStatus("info", `当天无课程（${data.date}）`);
+			} else {
+				updateStatus("success", `已查询到 ${data.total} 门课程（${data.date}）`);
+			}
 		} catch {
 			setCourses([]);
 			updateStatus("error", "网络异常，请稍后重试");
@@ -681,7 +686,7 @@ export default function Home() {
 
 	const onDirectSign = async () => {
 		if (directSignBlockedByTime) {
-			updateActionStatus("error", "当前不在签到时间（开课前30分钟至下课前可签到）");
+			updateActionStatus("error", "当前不在签到时间（开课前10分钟至下课前可签到）");
 			return;
 		}
 
@@ -785,7 +790,7 @@ export default function Home() {
 			return null;
 		}
 
-		const openAt = new Date(classBegin.getTime() - 30 * 60 * 1000);
+		const openAt = new Date(classBegin.getTime() - 10 * 60 * 1000);
 		return {
 			openAt: openAt.getTime(),
 			closeAt: classEnd.getTime()

@@ -1,0 +1,5 @@
+{
+	"username": "你的学号",
+	"password": "你的密码",
+	"cronSecret": "请替换为随机生成的长字符串"
+}

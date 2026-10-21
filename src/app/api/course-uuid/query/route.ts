@@ -27,7 +27,10 @@ type CourseItem = {
 
 type ScheduleResponse = {
 	STATUS?: string;
-	result?: CourseItem[];
+	message?: string;
+	msg?: string;
+	ERRMSG?: string;
+	result?: CourseItem[] | null;
 };
 
 export const runtime = "nodejs";
@@ -224,6 +227,23 @@ function sanitizeCourse(item: CourseItem) {
 	};
 }
 
+function isNoCourseResponse(data: ScheduleResponse | null | undefined): boolean {
+	if (!data) {
+		return false;
+	}
+
+	if (Array.isArray(data.result) && data.result.length === 0) {
+		return true;
+	}
+
+	const message = [data.message, data.msg, data.ERRMSG]
+		.filter((value): value is string => typeof value === "string")
+		.join(" ")
+		.toLowerCase();
+
+	return /无课|无课程|没有课程|暂无课程|no course|no class/.test(message);
+}
+
 export async function POST(req: NextRequest) {
 	const startedAt = Date.now();
 	const requestId = crypto.randomUUID();
@@ -363,7 +383,13 @@ export async function POST(req: NextRequest) {
 		}
 
 		if (scheduleData?.STATUS !== "0") {
-			return jsonWithHeaders({ message: "课表查询失败，或当天无课程" }, { status: 502 });
+			if (isNoCourseResponse(scheduleData)) {
+				return jsonWithHeaders(
+					{ date, total: 0, courses: [], noCourses: true, message: "当天无课程" },
+					{ status: 200 },
+				);
+			}
+			return jsonWithHeaders({ message: "课表查询失败" }, { status: 502 });
 		}
 
 		const courses = (scheduleData.result ?? []).map(sanitizeCourse);
@@ -372,7 +398,8 @@ export async function POST(req: NextRequest) {
 			{
 				date,
 				total: courses.length,
-				courses
+				courses,
+				noCourses: courses.length === 0
 			},
 			{ status: 200 }
 		);

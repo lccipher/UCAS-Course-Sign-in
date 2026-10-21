@@ -43,3 +43,6 @@ next-env.d.ts
 /httpcanary
 
 /.claude
+
+# local auto-sign credentials
+/config/ucas-account.json
