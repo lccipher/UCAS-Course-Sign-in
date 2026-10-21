@@ -1,8 +1,15 @@
+> [!IMPORTANT]
+> **维护说明与贡献邀请**
+>
+> 本人已离开学校、返回研究所，无法继续在校验证课程查询与签到流程，也难以及时排查和修复学校上游接口变化带来的问题。因此，项目当前的功能可用性无法保证，部分问题可能暂时无法由本人修复。
+>
+> 欢迎有能力、具备在校测试环境的同学积极提交 [Pull Request](https://github.com/lccipher/UCAS-Course-Sign-in/pulls)，共同参与维护，协助适配上游接口、修复问题和完善文档。遇到问题也欢迎通过 [Issues](https://github.com/lccipher/UCAS-Course-Sign-in/issues) 提供复现步骤、错误信息和改进建议。感谢大家的理解与支持！
+
 # UCAS Course Sign in
 
 UCAS 课程查询与签到二维码生成工具。
 
-在线访问：[UCAS Course Sign in (Vercel)](https://ucas-sign-in.vercel.app/)
+在线访问：[自有域名](https://ucas-sign-in.pi3.fun/) · [Vercel 地址](https://ucas-sign-in.vercel.app/)
 
 >[!CAUTION]
 > **本项目仅供学习交流使用，请勿用于任何商业用途或非法用途。**
@@ -24,9 +31,10 @@ UCAS 课程查询与签到二维码生成工具。
 
 ## 快速开始
 
-### 在线访问（推荐）
+### 在线访问
 
-[UCAS Course Sign in (Vercel)](https://ucas-sign-in.vercel.app/)
+- [自有域名：ucas-sign-in.pi3.fun](https://ucas-sign-in.pi3.fun/)
+- [Vercel 地址：ucas-sign-in.vercel.app](https://ucas-sign-in.vercel.app/)
 
 ### 本地运行
 
