@@ -11,6 +11,8 @@ UCAS 课程查询与签到二维码生成工具。
 
 在线访问：[自有域名](https://ucas-sign-in.pi3.fun/) · [Vercel 地址](https://ucas-sign-in.vercel.app/)
 
+访问状态、免费额度和一键部署说明见下方[在线访问](#在线访问)章节。
+
 >[!CAUTION]
 > **本项目仅供学习交流使用，请勿用于任何商业用途或非法用途。**
 
@@ -35,6 +37,46 @@ UCAS 课程查询与签到二维码生成工具。
 
 - [自有域名：ucas-sign-in.pi3.fun](https://ucas-sign-in.pi3.fun/)
 - [Vercel 地址：ucas-sign-in.vercel.app](https://ucas-sign-in.vercel.app/)
+
+> [!NOTE]
+> **访问状态更新（2026-10-22）**
+>
+> 网站已于 **2026 年 10 月 22 日恢复访问**。此前公共实例因 Edge Requests（现称 CDN Requests）超出 Vercel Hobby 免费额度，自 9 月 13 日起被平台暂停；本次已恢复现有项目访问，仍保留免费方案。
+>
+> **项目目前仍不稳定**：10 月 22 日手动测试时，有时能够签到成功，有时会出现接口异常或请求超时。网页恢复访问并不代表查询、校时和签到功能已完全恢复。异常的具体原因尚未确认，可能与学校上游接口或部署节点到学校的网络连通性有关；请以官方课堂系统中的实际签到记录为准。
+
+#### Vercel 免费额度与公共实例限制
+
+公共站点使用 Vercel 的 **Hobby 免费方案**，并非无限量服务。以下为 **2026-10-22 核对的主要额度**；额度和规则可能调整，请以 [Vercel Hobby 官方文档](https://vercel.com/docs/plans/hobby)及自己账号的 Usage 页面为准。
+
+| 资源 | Hobby 免费额度 |
+| --- | --- |
+| CDN 请求数（CDN Requests，原 Edge Requests） | 100 万次 |
+| 函数调用次数（Function Invocations） | 100 万次 |
+| 对访客的数据传输（Fast Data Transfer） | 100 GB |
+| 源站与 CDN 间的数据传输（Fast Origin Transfer） | 10 GB |
+| 函数 CPU 执行时间（Active CPU） | 4 CPU 小时 |
+| 函数预置内存用量（Provisioned Memory） | 360 GB·小时 |
+
+上述主要用量按 **最近 30 天滚动窗口**统计，并非网站上线后的终身总量，也不是每月 1 日统一清零；同一 Hobby 团队内的项目共同消耗额度。可参阅 [Vercel 工作人员对统计周期的说明](https://community.vercel.com/t/account-paused/1383/3)。
+
+- 两个在线地址指向同一个公共实例，**共享额度**，切换域名不会获得另一份免费额度。
+- 页面、脚本、样式、图片和 API 请求都会消耗相应资源；**100 万次请求不等于 100 万次签到**。
+- 超出免费额度或触发公平使用限制时，Vercel 可能暂停服务或阻止新部署；用量回落后也可能需要通过 [Vercel Support](https://vercel.com/help)申请解除限制。
+- 请避免频繁刷新、反复重试或使用高频脚本请求公共实例，以减少上游和公共站点的负担。
+
+#### 一键部署到自己的 Vercel 账号
+
+欢迎有能力的同学将项目部署到自己的账号中，供个人使用和测试，减少对公共实例的依赖。点击下面的官方按钮即可进入 Vercel 部署向导：
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Flccipher%2FUCAS-Course-Sign-in)
+
+1. 登录 Vercel，选择自己的个人 Hobby 免费团队，并按提示连接 GitHub 等 Git 账号。
+2. 部署向导会将本项目复制到你选择的 Git 账号中，并创建你自己的 Vercel 项目。
+3. Framework 选择 **Next.js**，Build Command 使用默认的 `npm run build`，其余配置通常保持默认即可。
+4. 按提示完成部署后，使用分配给你的域名访问。
+
+自己的部署仍受对应账号的免费额度和 [Hobby 个人、非商业使用规则](https://vercel.com/docs/plans/hobby)限制。**自行部署不能保证解决学校上游接口异常或超时**，实际可用性仍需自行测试。按钮的工作方式可参阅 [Vercel Deploy Button 官方说明](https://vercel.com/docs/deploy-button)。
 
 ### 本地运行
 
